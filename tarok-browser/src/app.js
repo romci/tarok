@@ -6,6 +6,7 @@ const i18n = new I18n("en");
 const game = new TarokGame({ playerCount: 4, aiLevel: "medium" });
 let autoTimer = null;
 let autoKick = null;
+let trickCollectKick = null;
 let autoHoldUntil = 0;
 
 const els = {
@@ -24,8 +25,23 @@ const view = new TarokView({
     transition(() => game.placeHumanBid(contractId));
     scheduleAutoTick();
   },
+  onKingCallClick(cardId) {
+    transition(() => game.chooseHumanCalledKing(cardId));
+    scheduleAutoTick();
+  },
   onCardClick(cardId) {
-    transition(() => game.playHumanCard(cardId));
+    transition(() => (
+      game.isHumanTalonDiscardTurn()
+        ? game.toggleHumanTalonDiscard(cardId)
+        : game.playHumanCard(cardId)
+    ));
+    scheduleAutoTick();
+  },
+  onTalonGroupClick(groupIndex) {
+    transition(() => game.chooseHumanTalonGroup(groupIndex));
+  },
+  onTalonConfirm() {
+    transition(() => game.finishHumanTalonExchange());
     scheduleAutoTick();
   }
 });
@@ -40,6 +56,7 @@ function transition(action) {
   const result = action();
   render(previousLayout);
   holdAutoForAnimation();
+  scheduleTrickCollection();
   return result;
 }
 
@@ -53,6 +70,13 @@ function stopAuto() {
     autoKick = null;
   }
   els.auto.setAttribute("aria-pressed", "false");
+}
+
+function clearTrickCollection() {
+  if (trickCollectKick) {
+    clearTimeout(trickCollectKick);
+    trickCollectKick = null;
+  }
 }
 
 function runAutoTick() {
@@ -79,6 +103,18 @@ function scheduleAutoTick(delay = 80) {
   }, Math.max(delay, hold + 40));
 }
 
+function scheduleTrickCollection() {
+  if (game.game.phase !== "trickComplete" || trickCollectKick) return;
+  const hold = Math.max(0, autoHoldUntil - Date.now());
+  trickCollectKick = setTimeout(() => {
+    trickCollectKick = null;
+    if (game.game.phase === "trickComplete") {
+      transition(() => game.step());
+      scheduleAutoTick();
+    }
+  }, hold + 60);
+}
+
 function holdAutoForAnimation() {
   const animation = game.game.animation;
   if (!animation) return;
@@ -100,6 +136,7 @@ function toggleAuto() {
 
 els.playerCount.addEventListener("change", (event) => {
   stopAuto();
+  clearTrickCollection();
   game.startSession({ playerCount: event.target.value, aiLevel: els.aiLevel.value });
   render();
 });
@@ -123,6 +160,7 @@ els.speed.addEventListener("change", () => {
 
 els.newHand.addEventListener("click", () => {
   stopAuto();
+  clearTrickCollection();
   game.startHand();
   render();
 });

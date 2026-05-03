@@ -1,11 +1,14 @@
-import { cardLabel, isTarok, maxTricks } from "./rules.js";
+import { canDiscard, cardLabel, isTarok, maxTricks } from "./rules.js";
 import { cardSpriteStyle } from "./cardAssets.js";
 
 export class TarokView {
-  constructor({ i18n, onBidClick, onCardClick }) {
+  constructor({ i18n, onBidClick, onKingCallClick, onCardClick, onTalonGroupClick, onTalonConfirm }) {
     this.i18n = i18n;
     this.onBidClick = onBidClick;
+    this.onKingCallClick = onKingCallClick;
     this.onCardClick = onCardClick;
+    this.onTalonGroupClick = onTalonGroupClick;
+    this.onTalonConfirm = onTalonConfirm;
     this.els = {
       title: document.querySelector("#app-title"),
       subtitle: document.querySelector("#subtitle"),
@@ -41,6 +44,8 @@ export class TarokView {
     this.renderActionPrompt(model);
     this.renderLog(model);
     this.bindBidButtons();
+    this.bindKingCallButtons();
+    this.bindTalonControls();
     this.animateCardTransition(previousLayout, model.game.animation);
     this.animateLatestMove(model);
   }
@@ -164,26 +169,33 @@ export class TarokView {
         ? ` ${this.t("ui.solo")}.`
         : "";
     const summary = game.handDone && game.summary ? this.formatLog(game.summary) : "";
+    const status = this.contractStatus(game);
+    const callingControls = model.isHumanCallingTurn() ? this.kingCallControls(model) : "";
     this.els.contract.innerHTML = `
       <div class="contract-title">
         <span>${this.contractName(game.contract)}</span>
-        <span>${this.t("ui.trick", { current: Math.min(game.trickNumber + 1, maxTricks(game.playerCount)), total: maxTricks(game.playerCount) })}</span>
+        <span>${status}</span>
       </div>
       <p class="contract-detail">
         ${this.t("ui.declarer")}: ${this.playerName(model.players[game.declarer])}.${partner}${called}
         ${summary}
       </p>
+      ${callingControls}
     `;
   }
 
   renderTrick(model) {
+    if (model.game.phase !== "play" && !model.game.currentTrick.length) {
+      this.els.trick.innerHTML = `<div class="played-card waiting-card">${this.t("ui.waitingPhase", { phase: this.phaseName(model.game.phase) })}</div>`;
+      return;
+    }
     if (!model.game.currentTrick.length) {
       const active = model.players[model.game.activePlayer];
-      this.els.trick.innerHTML = `<div class="played-card">${this.t("ui.waiting", { player: active ? this.playerName(active) : "" })}</div>`;
+      this.els.trick.innerHTML = `<div class="played-card waiting-card">${this.t("ui.waiting", { player: active ? this.playerName(active) : "" })}</div>`;
       return;
     }
     this.els.trick.innerHTML = model.game.currentTrick.map((play) => `
-      <div class="played-card">
+      <div class="played-card trick-seat-${this.seatPosition(play.playerId)}">
         ${this.cardHtml(play.card, "", "", "trick")}
         <span>${this.playerName(model.players[play.playerId])}</span>
       </div>
@@ -192,14 +204,30 @@ export class TarokView {
 
   renderTalon(model) {
     const game = model.game;
-    if (game.phase === "bidding") {
+    const talonTaken = game.talonTaken || [];
+    if (game.phase === "bidding" || game.phase === "calling") {
       this.els.talon.innerHTML = `
         <div class="contract-title">
           <span>Talon</span>
           <span>${this.t("ui.hidden")}</span>
         </div>
         <p class="contract-detail">${this.t("ui.talonHidden")}</p>
-        <div class="talon-cards">${game.talon.map((card) => this.cardBackHtml("small", card.id, "talon")).join("")}</div>
+        <div class="talon-cards">${game.talon.map((card) => this.cardBackHtml("small", card.id, "talon", false)).join("")}</div>
+      `;
+      return;
+    }
+    if (game.phase === "talon") {
+      if (model.isHumanTalonTurn() && game.talonExchange) {
+        this.renderHumanTalon(model);
+        return;
+      }
+      this.els.talon.innerHTML = `
+        <div class="contract-title">
+          <span>Talon</span>
+          <span>${this.phaseName(game.phase)}</span>
+        </div>
+        <p class="contract-detail">${this.t("ui.talonExchange")} ${this.t("ui.actionAutoAssist")}</p>
+        <div class="talon-cards">${game.talon.map((card) => this.cardHtml(card, "small", "", "talon", false)).join("")}</div>
       `;
       return;
     }
@@ -211,7 +239,20 @@ export class TarokView {
         </div>
         <p class="contract-detail">${this.t("ui.talonKlop")}</p>
         <div class="talon-cards">
-          ${game.talon.map((card) => (game.handDone ? this.cardHtml(card, "small", "", "talon") : this.cardBackHtml("small", card.id, "talon"))).join("")}
+          ${game.talon.map((card) => (game.handDone ? this.cardHtml(card, "small", "", "talon", false) : this.cardBackHtml("small", card.id, "talon", false))).join("")}
+        </div>
+      `;
+      return;
+    }
+    if (this.isHiddenTalonContract(game)) {
+      this.els.talon.innerHTML = `
+        <div class="contract-title">
+          <span>Talon</span>
+          <span>${this.t("ui.hidden")}</span>
+        </div>
+        <p class="contract-detail">${this.t("ui.talonHidden")}</p>
+        <div class="talon-cards">
+          ${game.talon.map((card) => this.cardBackHtml("small", card.id, "talon", false)).join("")}
         </div>
       `;
       return;
@@ -219,13 +260,44 @@ export class TarokView {
     this.els.talon.innerHTML = `
       <div class="contract-title">
         <span>Talon</span>
-        <span>${this.t("ui.rejected", { count: game.talonRejected.length })}</span>
+        <span>${this.t("ui.talonTaken", { count: talonTaken.length })} / ${this.t("ui.rejected", { count: game.talonRejected.length })}</span>
       </div>
       <p class="contract-detail">${this.t("ui.talonHelp")}</p>
       <div class="talon-cards">
-        ${game.talon.map((card) => this.cardHtml(card, "small", "", "talon")).join("")}
-        ${game.talonRejected.map((card) => (game.handDone ? this.cardHtml(card, "small", "", "talon") : this.cardBackHtml("small", card.id, "talon"))).join("")}
+        ${talonTaken.map((card) => this.cardHtml(card, "small", "", "talon", false)).join("")}
+        ${game.talonRejected.map((card) => (game.handDone ? this.cardHtml(card, "small", "", "talon", false) : this.cardBackHtml("small", card.id, "talon", false))).join("")}
       </div>
+    `;
+  }
+
+  renderHumanTalon(model) {
+    const exchange = model.game.talonExchange;
+    const count = model.game.contract.talonTake;
+    const selectedCount = exchange.discardIds.length;
+    const ready = exchange.selectedIndex !== null && selectedCount === count;
+    const groupHtml = exchange.groups.map((group, index) => {
+      const selected = index === exchange.selectedIndex;
+      const rejected = exchange.selectedIndex !== null && !selected;
+      return `
+        <button class="talon-group ${selected ? "selected" : ""} ${rejected ? "rejected" : ""}" type="button" data-talon-group="${index}" ${exchange.selectedIndex === null ? "" : "disabled"}>
+          ${group.map((card) => this.cardHtml(card, "small", "", "talon", false)).join("")}
+        </button>
+      `;
+    }).join("");
+    this.els.talon.innerHTML = `
+      <div class="contract-title">
+        <span>Talon</span>
+        <span>${exchange.selectedIndex === null ? this.t("ui.talonChooseGroup", { count }) : this.t("ui.talonChooseDiscards", { selected: selectedCount, count })}</span>
+      </div>
+      <p class="contract-detail">
+        ${exchange.selectedIndex === null ? this.t("ui.talonPickPrompt") : this.t("ui.talonDiscardPrompt")}
+      </p>
+      <div class="talon-groups">${groupHtml}</div>
+      ${exchange.selectedIndex === null ? "" : `
+        <button class="talon-confirm" type="button" data-talon-confirm ${ready ? "" : "disabled"}>
+          ${this.t("ui.confirmTalon")}
+        </button>
+      `}
     `;
   }
 
@@ -238,6 +310,18 @@ export class TarokView {
       text = this.t("ui.actionYourBid");
     } else if (game.phase === "bidding") {
       text = this.t("ui.actionAiBid", { player: this.playerName(model.players[game.activePlayer]) });
+    } else if (game.phase === "calling") {
+      text = model.isHumanCallingTurn()
+        ? this.t("ui.actionYourCalling")
+        : this.t("ui.actionCalling", { player: this.playerName(model.players[game.activePlayer]) });
+    } else if (game.phase === "talon") {
+      text = model.isHumanTalonTurn()
+        ? this.t("ui.actionYourTalon")
+        : this.t("ui.actionTalon", { player: this.playerName(model.players[game.activePlayer]) });
+    } else if (game.phase === "announcements") {
+      text = this.t("ui.actionAnnouncements");
+    } else if (game.phase === "trickComplete") {
+      text = this.t("ui.actionTrickComplete");
     } else if (model.isHumanTurn()) {
       text = this.t("ui.actionYourTurn");
     } else {
@@ -255,24 +339,33 @@ export class TarokView {
       return player.hand.map((card) => this.cardBackHtml("small", card.id, `hand-${player.id}`)).join("");
     }
     return player.hand.map((card) => {
-      const legal = legalIds.has(card.id) && this.model.isHumanTurn();
+      const humanTurn = this.model.isHumanTurn();
+      const humanTalonDiscard = player.id === this.model.humanId && this.model.isHumanTalonDiscardTurn();
+      const exchange = this.model.game.talonExchange;
+      const selected = humanTalonDiscard && exchange.discardIds.includes(card.id);
+      const legal = humanTurn ? legalIds.has(card.id) : humanTalonDiscard && canDiscard(card);
+      const stateClass = [
+        legal ? "playable" : humanTurn || humanTalonDiscard ? "disabled" : "",
+        selected ? "selected-discard" : ""
+      ].filter(Boolean).join(" ");
       return `
         <button class="card-button" type="button" data-card-id="${card.id}" ${legal ? "" : "disabled"}>
-          ${this.cardHtml(card, "small", legal ? "playable" : "disabled", `hand-${player.id}`)}
+          ${this.cardHtml(card, "small", stateClass, `hand-${player.id}`)}
         </button>
       `;
     }).join("");
   }
 
-  cardHtml(card, size = "", stateClass = "", zone = "") {
+  cardHtml(card, size = "", stateClass = "", zone = "", tracked = true) {
     const classes = ["card", "face", size, stateClass, isTarok(card) ? "tarok" : "", card.color === "red" ? "red" : ""].filter(Boolean).join(" ");
     const label = cardLabel(card, this.t);
     const zoneData = zone ? ` data-card-zone="${zone}"` : "";
-    return `<span class="${classes}" role="img" aria-label="${label}" title="${label}" style="${cardSpriteStyle(card.id)}" data-card-id="${card.id}"${zoneData}></span>`;
+    const cardData = tracked ? ` data-card-id="${card.id}"` : "";
+    return `<span class="${classes}" role="img" aria-label="${label}" title="${label}" style="${cardSpriteStyle(card.id)}"${cardData}${zoneData}></span>`;
   }
 
-  cardBackHtml(size = "", cardId = "", zone = "") {
-    const data = cardId ? ` data-card-id="${cardId}"` : "";
+  cardBackHtml(size = "", cardId = "", zone = "", tracked = true) {
+    const data = cardId && tracked ? ` data-card-id="${cardId}"` : "";
     const zoneData = zone ? ` data-card-zone="${zone}"` : "";
     return `<span class="card back ${size}" role="img" aria-label="Hidden card"${data}${zoneData}></span>`;
   }
@@ -302,6 +395,34 @@ export class TarokView {
   bindBidButtons() {
     this.els.contract.querySelectorAll("[data-bid-id]").forEach((button) => {
       button.addEventListener("click", () => this.onBidClick(button.dataset.bidId || null));
+    });
+  }
+
+  kingCallControls(model) {
+    return `
+      <div class="king-call-controls">
+        ${model.callableKings().map((card) => `
+          <button type="button" class="king-call-button" data-king-call-id="${card.id}">
+            ${this.cardHtml(card, "small", "playable", "king-call", false)}
+            <span>${cardLabel(card, this.t)}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  bindKingCallButtons() {
+    this.els.contract.querySelectorAll("[data-king-call-id]").forEach((button) => {
+      button.addEventListener("click", () => this.onKingCallClick(button.dataset.kingCallId));
+    });
+  }
+
+  bindTalonControls() {
+    this.els.talon.querySelectorAll("[data-talon-group]").forEach((button) => {
+      button.addEventListener("click", () => this.onTalonGroupClick(button.dataset.talonGroup));
+    });
+    this.els.talon.querySelectorAll("[data-talon-confirm]").forEach((button) => {
+      button.addEventListener("click", () => this.onTalonConfirm());
     });
   }
 
@@ -356,6 +477,37 @@ export class TarokView {
         declarer: this.playerName(this.model.players[vars.declarerId]),
         contract: this.contractNameById(vars.contractId)
       });
+    }
+    if (item.key === "log.callKing") {
+      const partner = vars.inTalon
+        ? ` ${this.t("ui.inTalon")}`
+        : vars.partnerId !== null && vars.partnerId !== undefined
+          ? ` ${this.t("ui.partner")}: ${this.playerName(this.model.players[vars.partnerId])}.`
+          : "";
+      return this.t(item.key, {
+        declarer: this.playerName(this.model.players[vars.declarerId]),
+        card: cardLabel(vars.card, this.t),
+        partner
+      });
+    }
+    if (item.key === "log.callKingSkipped") {
+      return this.t(item.key, {
+        declarer: this.playerName(this.model.players[vars.declarerId])
+      });
+    }
+    if (item.key === "log.talonExchange") {
+      return this.t(item.key, {
+        declarer: this.playerName(this.model.players[vars.declarerId]),
+        takenCount: vars.takenCount,
+        discardCount: vars.discardCount,
+        rejectedCount: vars.rejectedCount
+      });
+    }
+    if (item.key === "log.talonNoExchange") {
+      return this.t(item.key, { count: vars.count });
+    }
+    if (item.key === "log.announcementsPassed" || item.key === "log.playStarts") {
+      return this.t(item.key, { player: this.playerName(this.model.players[vars.playerId]) });
     }
     if (item.key === "log.play") {
       if (vars.playerId === this.model.humanId) {
@@ -428,6 +580,10 @@ export class TarokView {
     ].join(" / ");
   }
 
+  seatPosition(playerId) {
+    return ["south", "east", "north", "west"][playerId] || "south";
+  }
+
   playerName(player) {
     return player ? this.t(player.nameKey) : "";
   }
@@ -438,6 +594,29 @@ export class TarokView {
 
   contractNameById(contractId) {
     return this.t(`contract.${contractId}`);
+  }
+
+  contractStatus(game) {
+    if (game.phase === "play" || game.phase === "trickComplete") {
+      return this.t("ui.trick", { current: Math.min(game.trickNumber + 1, maxTricks(game.playerCount)), total: maxTricks(game.playerCount) });
+    }
+    return this.phaseName(game.phase);
+  }
+
+  phaseName(phase) {
+    const names = {
+      calling: this.t("ui.phaseCalling"),
+      talon: this.t("ui.phaseTalon"),
+      announcements: this.t("ui.phaseAnnouncements"),
+      trickComplete: this.t("ui.phaseTrickComplete"),
+      done: this.t("ui.phaseDone")
+    };
+    return names[phase] || "";
+  }
+
+  isHiddenTalonContract(game) {
+    if (!game.contract || game.handDone || game.talonExchanged) return false;
+    return ["beggar", "openBeggar", "piccolo"].includes(game.contract.id);
   }
 
   labelFor(controlId, text) {
@@ -509,7 +688,11 @@ export class TarokView {
       node.style.setProperty("--arrive-ms", `${duration}ms`);
       node.style.setProperty("--arrive-delay", `${delay}ms`);
     }
-    node.addEventListener("animationend", () => node.classList.remove("card-arriving"), { once: true });
+    node.addEventListener("animationend", () => {
+      node.classList.remove("card-arriving");
+      node.style.removeProperty("--arrive-ms");
+      node.style.removeProperty("--arrive-delay");
+    }, { once: true });
   }
 
   createCardFlyer(previous, next, options = {}) {

@@ -368,20 +368,98 @@ h1 {
   background: var(--paper-2);
 }
 
-.trick-area {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(110px, 1fr));
+.king-call-controls {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  align-content: center;
-  justify-items: stretch;
+  margin-top: 12px;
+}
+
+.king-call-button {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px;
+  color: var(--paper-2);
+  background: rgba(255, 250, 240, 0.08);
+  box-shadow: none;
+}
+
+.king-call-button:hover,
+.king-call-button:focus-visible {
+  background: rgba(255, 250, 240, 0.16);
+}
+
+.king-call-button span {
+  max-width: var(--card-small-w);
+  color: rgba(255, 250, 240, 0.82);
+  font-size: 11px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.trick-area {
+  position: relative;
+  min-height: 260px;
 }
 
 .played-card {
+  position: absolute;
   display: grid;
   justify-items: center;
   gap: 6px;
   color: var(--paper-2);
   font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.38);
+}
+
+.waiting-card {
+  top: 50%;
+  left: 50%;
+  width: min(90%, 360px);
+  justify-items: center;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.trick-seat-south {
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+}
+
+.trick-seat-north {
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+}
+
+.trick-seat-east {
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+}
+
+.trick-seat-west {
+  top: 50%;
+  left: 18px;
+  transform: translateY(-50%);
+}
+
+.trick-seat-east,
+.trick-seat-west {
+  grid-template-columns: auto auto;
+  align-items: center;
+}
+
+.trick-seat-east span {
+  order: -1;
+}
+
+.trick-seat-south .card,
+.trick-seat-north .card {
+  margin-inline: auto;
 }
 
 .card {
@@ -439,6 +517,13 @@ h1 {
   opacity: 1;
 }
 
+.card.selected-discard {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(185, 133, 47, 0.26), 0 10px 18px rgba(0, 0, 0, 0.28);
+  transform: translateY(-7px);
+}
+
 .card.small {
   --face-w: var(--card-small-w);
   --face-h: var(--card-small-h);
@@ -454,6 +539,58 @@ h1 {
 .card.back {
   border-color: rgba(255, 250, 240, 0.28);
   background: url("assets/cards/back.png") center / cover no-repeat;
+}
+
+.talon-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.talon-group {
+  display: flex;
+  align-items: flex-start;
+  min-height: 0;
+  border-color: rgba(255, 250, 240, 0.2);
+  padding: 8px 8px 8px 18px;
+  background: rgba(255, 250, 240, 0.08);
+  box-shadow: none;
+}
+
+.talon-group:hover,
+.talon-group:focus-visible {
+  background: rgba(255, 250, 240, 0.16);
+}
+
+.talon-group:disabled {
+  cursor: default;
+}
+
+.talon-group.selected {
+  border-color: var(--gold);
+  background: rgba(185, 133, 47, 0.24);
+}
+
+.talon-group.rejected {
+  opacity: 0.5;
+}
+
+.talon-group .card {
+  margin-left: -10px;
+}
+
+.talon-group .card:first-child {
+  margin-left: 0;
+}
+
+.talon-confirm {
+  margin-top: 10px;
+}
+
+.talon-confirm:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .talon-cards {
