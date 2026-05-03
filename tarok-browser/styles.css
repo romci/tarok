@@ -10,6 +10,14 @@
   --blue: #2b5876;
   --line: rgba(23, 17, 12, 0.16);
   --shadow: 0 18px 42px rgba(23, 17, 12, 0.22);
+  --pace-ms: 650ms;
+  --card-w: 64px;
+  --card-h: 108px;
+  --card-small-w: 52px;
+  --card-small-h: 87px;
+  --card-mini-w: 32px;
+  --card-mini-h: 54px;
+  --card-overlap: -19px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -195,17 +203,26 @@ h1 {
   pointer-events: none;
 }
 
+.table-felt.table-pulse {
+  animation: table-pulse 520ms ease;
+}
+
 .seat {
   position: absolute;
   z-index: 2;
-  width: min(38vw, 390px);
-  min-height: 122px;
+  width: min(42vw, 470px);
+  min-height: 154px;
   border: 1px solid rgba(255, 250, 240, 0.16);
   border-radius: 8px;
   padding: 10px;
   color: var(--paper-2);
   background: rgba(11, 29, 25, 0.72);
   backdrop-filter: blur(7px);
+}
+
+.seat-east,
+.seat-west {
+  width: min(24vw, 320px);
 }
 
 .seat.current {
@@ -265,8 +282,17 @@ h1 {
 .hand-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  min-height: 68px;
+  align-items: flex-start;
+  min-height: calc(var(--card-small-h) + 10px);
+  padding-left: calc(-1 * var(--card-overlap));
+}
+
+.hand-row > * {
+  margin-left: var(--card-overlap);
+}
+
+.hand-row > *:first-child {
+  margin-left: 0;
 }
 
 .card-button {
@@ -293,7 +319,7 @@ h1 {
 .center-state {
   position: absolute;
   z-index: 1;
-  inset: 162px 420px 162px 420px;
+  inset: 174px min(33vw, 360px) 174px min(33vw, 360px);
   display: grid;
   grid-template-rows: auto minmax(150px, 1fr) auto;
   gap: 10px;
@@ -324,6 +350,24 @@ h1 {
   line-height: 1.4;
 }
 
+.bid-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.bid-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.bid-button.pass {
+  color: var(--ink);
+  background: var(--paper-2);
+}
+
 .trick-area {
   display: grid;
   grid-template-columns: repeat(2, minmax(110px, 1fr));
@@ -340,23 +384,50 @@ h1 {
   font-weight: 800;
 }
 
-.played-card .card {
-  transform: scale(1.12);
-}
-
 .card {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 45px;
-  height: 64px;
+  --face-w: var(--card-w);
+  --face-h: var(--card-h);
+  --sprite-x: 0%;
+  --sprite-y: 0%;
+  display: block;
+  width: var(--face-w);
+  height: var(--face-h);
   border: 1px solid rgba(23, 17, 12, 0.22);
   border-radius: 7px;
-  color: var(--ink);
-  background: linear-gradient(160deg, #fffdf6, #eadfcb);
+  background: #eadfcb;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
-  font-weight: 900;
-  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+  user-select: none;
+}
+
+.card.face {
+  background-image: url("assets/cards/fronts-sprite.png");
+  background-position: var(--sprite-x) var(--sprite-y);
+  background-repeat: no-repeat;
+  background-size: 900% 600%;
+}
+
+.card.dealt-card {
+  animation: deal-card 520ms cubic-bezier(0.19, 1, 0.22, 1) both;
+  animation-delay: var(--deal-delay, 0ms);
+}
+
+.card-flyer {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  animation: card-flight var(--fly-ms, var(--pace-ms)) cubic-bezier(0.2, 0.86, 0.26, 1) forwards;
+  animation-delay: var(--fly-delay, 0ms);
+  transform-origin: center;
+}
+
+.card-arriving {
+  animation: card-arrive var(--arrive-ms, var(--pace-ms)) ease both;
+  animation-delay: var(--arrive-delay, 0ms);
+}
+
+.trick-winner-pulse {
+  animation: trick-winner-pulse 1200ms ease both;
 }
 
 .card.playable {
@@ -365,66 +436,63 @@ h1 {
 }
 
 .card.disabled {
-  opacity: 0.56;
+  opacity: 1;
 }
 
 .card.small {
-  width: 34px;
-  height: 49px;
+  --face-w: var(--card-small-w);
+  --face-h: var(--card-small-h);
   border-radius: 6px;
-  font-size: 12px;
 }
 
-.card.red {
-  color: var(--red);
-}
-
-.card.tarok {
-  color: var(--blue);
-  background:
-    linear-gradient(160deg, #fffdf6, #e9d7ab);
+.card.mini {
+  --face-w: var(--card-mini-w);
+  --face-h: var(--card-mini-h);
+  border-radius: 5px;
 }
 
 .card.back {
-  color: transparent;
-  background:
-    linear-gradient(45deg, rgba(255, 250, 240, 0.12) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255, 250, 240, 0.12) 25%, transparent 25%),
-    #7e2f29;
-  background-size: 10px 10px;
   border-color: rgba(255, 250, 240, 0.28);
-}
-
-.card-corner {
-  position: absolute;
-  top: 5px;
-  left: 6px;
-  font-size: 10px;
-  color: currentColor;
-}
-
-.card-main {
-  text-align: center;
-  line-height: 1.05;
-}
-
-.card-value {
-  display: block;
-  font-size: 16px;
-}
-
-.card-suit {
-  display: block;
-  margin-top: 2px;
-  font-size: 11px;
-  letter-spacing: 0;
+  background: url("assets/cards/back.png") center / cover no-repeat;
 }
 
 .talon-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  align-items: flex-start;
   margin-top: 9px;
+  padding-left: calc(-1 * var(--card-overlap));
+}
+
+.talon-cards .card {
+  margin-left: var(--card-overlap);
+}
+
+.talon-cards .card:first-child {
+  margin-left: 0;
+}
+
+.taken-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  margin-top: 8px;
+  color: rgba(255, 250, 240, 0.66);
+  font-size: 11px;
+}
+
+.taken-cards {
+  display: flex;
+  padding-left: 9px;
+}
+
+.taken-cards .card {
+  margin-left: -8px;
+}
+
+.taken-cards .card:first-child {
+  margin-left: 0;
 }
 
 .side-panel {
@@ -475,6 +543,83 @@ h1 {
   line-height: 1.35;
 }
 
+@keyframes deal-card {
+  from {
+    opacity: 0;
+    transform: translate(0, -78px) scale(0.72) rotate(-7deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes card-flight {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1, 1) rotate(-2deg);
+  }
+  65% {
+    opacity: 1;
+    transform: translate(calc(var(--fly-x) * 0.72), calc(var(--fly-y) * 0.72 - 26px)) scale(1.08) rotate(3deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fly-x), var(--fly-y)) scale(var(--fly-scale-x), var(--fly-scale-y)) rotate(0deg);
+  }
+}
+
+@keyframes card-arrive {
+  from {
+    opacity: 0;
+  }
+  92% {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes table-pulse {
+  0% {
+    box-shadow: var(--shadow);
+  }
+  45% {
+    box-shadow: 0 18px 50px rgba(185, 133, 47, 0.35);
+  }
+  100% {
+    box-shadow: var(--shadow);
+  }
+}
+
+@keyframes trick-winner-pulse {
+  0% {
+    outline-color: var(--gold);
+    box-shadow: none;
+  }
+  45% {
+    outline-color: #f3d280;
+    box-shadow: 0 0 0 5px rgba(185, 133, 47, 0.2), 0 14px 28px rgba(185, 133, 47, 0.18);
+  }
+  100% {
+    outline-color: var(--gold);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card.dealt-card,
+  .card-flyer,
+  .card-arriving,
+  .trick-winner-pulse,
+  .table-felt.table-pulse {
+    animation: none;
+    transition: none;
+  }
+}
+
 @media (max-width: 1160px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -487,11 +632,11 @@ h1 {
   }
 
   .center-state {
-    inset: 150px 32px 150px 32px;
+    inset: 168px 32px 168px 32px;
   }
 
   .seat {
-    width: min(44vw, 360px);
+    width: min(46vw, 430px);
   }
 
   .side-panel {
@@ -554,12 +699,12 @@ h1 {
   }
 
   .card {
-    width: 39px;
-    height: 56px;
+    width: 48px;
+    height: 81px;
   }
 
   .card.small {
-    width: 30px;
-    height: 43px;
+    width: 40px;
+    height: 67px;
   }
 }

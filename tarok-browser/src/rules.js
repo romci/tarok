@@ -10,27 +10,34 @@ export const CONTRACTS = {
   three: { id: "three", nameKey: "contract.three", base: 10, talonTake: 3, mode: "positive", rank: 1, callsKing: true },
   two: { id: "two", nameKey: "contract.two", base: 20, talonTake: 2, mode: "positive", rank: 2, callsKing: true },
   one: { id: "one", nameKey: "contract.one", base: 30, talonTake: 1, mode: "positive", rank: 3, callsKing: true },
-  soloThree: { id: "soloThree", nameKey: "contract.soloThree", base: 40, talonTake: 3, mode: "positive", rank: 4, solo: true },
-  soloTwo: { id: "soloTwo", nameKey: "contract.soloTwo", base: 50, talonTake: 2, mode: "positive", rank: 5, solo: true },
-  soloOne: { id: "soloOne", nameKey: "contract.soloOne", base: 60, talonTake: 1, mode: "positive", rank: 6, solo: true },
-  beggar: { id: "beggar", nameKey: "contract.beggar", base: 70, talonTake: 0, mode: "beggar", rank: 7, solo: true },
-  soloWithout: { id: "soloWithout", nameKey: "contract.soloWithout", base: 80, talonTake: 0, mode: "positive", rank: 8, solo: true, noBonuses: true }
+  piccolo: { id: "piccolo", nameKey: "contract.piccolo", base: 35, talonTake: 0, mode: "piccolo", rank: 4, solo: true, noBonuses: true },
+  soloThree: { id: "soloThree", nameKey: "contract.soloThree", base: 40, talonTake: 3, mode: "positive", rank: 5, solo: true },
+  soloTwo: { id: "soloTwo", nameKey: "contract.soloTwo", base: 50, talonTake: 2, mode: "positive", rank: 6, solo: true },
+  soloOne: { id: "soloOne", nameKey: "contract.soloOne", base: 60, talonTake: 1, mode: "positive", rank: 7, solo: true },
+  beggar: { id: "beggar", nameKey: "contract.beggar", base: 70, talonTake: 0, mode: "beggar", rank: 8, solo: true, noBonuses: true },
+  soloWithout: { id: "soloWithout", nameKey: "contract.soloWithout", base: 80, talonTake: 0, mode: "positive", rank: 9, solo: true, noBonuses: true, noDifference: true },
+  openBeggar: { id: "openBeggar", nameKey: "contract.openBeggar", base: 90, talonTake: 0, mode: "beggar", rank: 10, solo: true, noBonuses: true, openHand: true },
+  colourValatWithout: { id: "colourValatWithout", nameKey: "contract.colourValatWithout", base: 125, talonTake: 0, mode: "colourValat", rank: 11, solo: true, noBonuses: true, noDifference: true },
+  valatWithout: { id: "valatWithout", nameKey: "contract.valatWithout", base: 500, talonTake: 0, mode: "valat", rank: 12, solo: true, noBonuses: true, noDifference: true }
 };
 
+export const CONTRACT_SEQUENCE = Object.values(CONTRACTS).sort((a, b) => a.rank - b.rank);
 export const NORMAL_CONTRACT_IDS = new Set(["three", "two", "one", "soloThree", "soloTwo", "soloOne"]);
+export const TAROK_IDS = [...Array.from({ length: 20 }, (_, index) => `T${index + 1}`), "T22", "SKIS"];
 
 export function createDeck() {
   const cards = [];
-  for (let tarok = 1; tarok <= 22; tarok += 1) {
-    const name = tarok === 22 ? "Skis" : tarok === 21 ? "Mond" : tarok === 1 ? "Pagat" : roman(tarok);
+  for (const id of TAROK_IDS) {
+    const tarok = id === "SKIS" ? 23 : Number(id.slice(1));
+    const name = id === "SKIS" ? "Škis" : id === "T22" ? "Mond" : id === "T1" ? "Pagat" : roman(tarok);
     cards.push({
-      id: `T${tarok}`,
+      id,
       type: "tarok",
       tarok,
       rank: name,
       suit: "tarok",
       suitShort: "T",
-      value: isTrulaId(`T${tarok}`) ? 5 : 1
+      value: isTrulaId(id) ? 5 : 1
     });
   }
 
@@ -83,12 +90,14 @@ export function legalCards(hand, trick, contract) {
 }
 
 export function trickWinner(trick) {
+  const contract = trick.contract;
   const tarokIds = new Set(trick.filter((play) => isTarok(play.card)).map((play) => play.card.id));
-  if (tarokIds.has("T1") && tarokIds.has("T21") && tarokIds.has("T22")) {
+  if (tarokIds.has("T1") && tarokIds.has("T22") && tarokIds.has("SKIS")) {
+    if (contract && contract.mode === "colourValat" && !isTarok(trick[0].card)) return trick[0].playerId;
     return trick.find((play) => play.card.id === "T1").playerId;
   }
   const taroks = trick.filter((play) => isTarok(play.card));
-  if (taroks.length) {
+  if (taroks.length && (!contract || contract.mode !== "colourValat" || isTarok(trick[0].card))) {
     return taroks.sort((a, b) => b.card.tarok - a.card.tarok)[0].playerId;
   }
   const ledSuit = trick[0].card.suit;
@@ -97,8 +106,10 @@ export function trickWinner(trick) {
     .sort((a, b) => b.card.suitStrength - a.card.suitStrength)[0].playerId;
 }
 
-export function wouldWin(card, trick) {
-  return trickWinner([...trick, { playerId: -1, card }]) === -1;
+export function wouldWin(card, trick, contract = null) {
+  const candidateTrick = [...trick, { playerId: -1, card }];
+  candidateTrick.contract = contract;
+  return trickWinner(candidateTrick) === -1;
 }
 
 export function countTarokPoints(cards) {
@@ -172,22 +183,25 @@ export function signed(value) {
 
 export function bonusSet(cards) {
   return {
-    trula: ["T1", "T21", "T22"].every((id) => cards.some((card) => card.id === id)),
+    trula: ["T1", "T22", "SKIS"].every((id) => cards.some((card) => card.id === id)),
     kings: SUITS.every((suit) => cards.some((card) => card.id === `${suit.short}K`))
   };
 }
 
 function negativeLegalSubset(cards, trick, contract) {
-  if (!["klop", "beggar"].includes(contract.id)) return cards;
-  const winning = cards.filter((card) => wouldWin(card, trick));
+  if (!["klop", "beggar", "openBeggar", "piccolo"].includes(contract.id)) return cards;
+  const winning = cards.filter((card) => wouldWin(card, trick, contract));
   let restricted = winning.length ? winning : cards;
-  const withoutPagat = restricted.filter((card) => card.id !== "T1");
-  if (withoutPagat.length) restricted = withoutPagat;
+  if (restricted.some((card) => card.id !== "T1")) {
+    const pagatOnlyWins = cards.filter((card) => card.id === "T1" && wouldWin(card, trick, contract));
+    const withoutPagat = restricted.filter((card) => card.id !== "T1");
+    if (withoutPagat.length || !pagatOnlyWins.length) restricted = withoutPagat;
+  }
   return restricted;
 }
 
 function isTrulaId(id) {
-  return id === "T1" || id === "T21" || id === "T22";
+  return id === "T1" || id === "T22" || id === "SKIS";
 }
 
 function suitIndex(suitId) {

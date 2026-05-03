@@ -113,23 +113,22 @@ export class NetworkSeatController extends SeatController {
 function pickContract(game, player, level) {
   const strength = evaluateHand(player.hand);
   const weakHand = strength.taroks <= 2 && strength.highTaroks === 0 && strength.counters <= 2;
-  if (weakHand && level !== "hard") return CONTRACTS.beggar;
+  if (weakHand && level !== "hard") return Math.random() > 0.35 ? CONTRACTS.beggar : CONTRACTS.piccolo;
 
   const thresholds = {
     easy: game.playerCount === 3
-      ? [[49, CONTRACTS.one], [41, CONTRACTS.two], [34, CONTRACTS.three]]
-      : [[58, CONTRACTS.soloOne], [49, CONTRACTS.one], [41, CONTRACTS.two], [34, CONTRACTS.three]],
+      ? [[78, CONTRACTS.openBeggar], [66, CONTRACTS.soloWithout], [49, CONTRACTS.one], [41, CONTRACTS.two], [34, CONTRACTS.three]]
+      : [[82, CONTRACTS.openBeggar], [72, CONTRACTS.soloWithout], [58, CONTRACTS.soloOne], [49, CONTRACTS.one], [41, CONTRACTS.two], [34, CONTRACTS.three]],
     medium: game.playerCount === 3
-      ? [[56, CONTRACTS.soloWithout], [47, CONTRACTS.one], [39, CONTRACTS.two], [31, CONTRACTS.three]]
-      : [[63, CONTRACTS.soloWithout], [54, CONTRACTS.soloOne], [46, CONTRACTS.one], [38, CONTRACTS.two], [30, CONTRACTS.three]],
+      ? [[84, CONTRACTS.valatWithout], [72, CONTRACTS.openBeggar], [56, CONTRACTS.soloWithout], [47, CONTRACTS.one], [39, CONTRACTS.two], [31, CONTRACTS.three]]
+      : [[88, CONTRACTS.valatWithout], [76, CONTRACTS.openBeggar], [63, CONTRACTS.soloWithout], [54, CONTRACTS.soloOne], [46, CONTRACTS.one], [38, CONTRACTS.two], [30, CONTRACTS.three]],
     hard: game.playerCount === 3
-      ? [[60, CONTRACTS.soloWithout], [49, CONTRACTS.one], [41, CONTRACTS.two], [33, CONTRACTS.three]]
-      : [[66, CONTRACTS.soloWithout], [57, CONTRACTS.soloOne], [49, CONTRACTS.one], [41, CONTRACTS.two], [33, CONTRACTS.three]]
+      ? [[88, CONTRACTS.valatWithout], [76, CONTRACTS.openBeggar], [60, CONTRACTS.soloWithout], [49, CONTRACTS.one], [41, CONTRACTS.two], [33, CONTRACTS.three]]
+      : [[92, CONTRACTS.valatWithout], [80, CONTRACTS.openBeggar], [66, CONTRACTS.soloWithout], [57, CONTRACTS.soloOne], [49, CONTRACTS.one], [41, CONTRACTS.two], [33, CONTRACTS.three]]
   };
 
   for (const [minimum, contract] of thresholds[level]) {
     if (strength.score >= minimum) {
-      if (contract.id === "three" && game.playerCount === 4 && player.id !== game.forehand && level !== "easy") return null;
       return contract;
     }
   }
@@ -156,12 +155,12 @@ function pickMediumCard(game, player, legalCards) {
     return suits[0] || ordered[0];
   }
 
-  const winningCards = ordered.filter((card) => wouldWin(card, trick));
+  const winningCards = ordered.filter((card) => wouldWin(card, trick, game.game.contract));
   const trickValue = trick.reduce((sum, play) => sum + play.card.value, 0);
   const wantsTrick = game.isDeclarerSide(player.id) && trickValue >= 7;
   if (isNegativeContract(game)) return ordered[0];
   if (winningCards.length && (wantsTrick || trick.length === game.playerCount - 1)) return winningCards[0];
-  return ordered.find((card) => !wouldWin(card, trick)) || ordered[0];
+  return ordered.find((card) => !wouldWin(card, trick, game.game.contract)) || ordered[0];
 }
 
 function pickHardCard(game, player, legalCards) {
@@ -174,20 +173,20 @@ function pickHardCard(game, player, legalCards) {
   }
 
   const trickValue = trick.reduce((sum, play) => sum + play.card.value, 0);
-  const winningCards = ordered.filter((card) => wouldWin(card, trick));
+  const winningCards = ordered.filter((card) => wouldWin(card, trick, game.game.contract));
   const lastToPlay = trick.length === game.playerCount - 1;
   const declarerSide = game.isDeclarerSide(player.id);
   const shouldWin = trickValue >= (declarerSide ? 5 : 8) || lastToPlay;
   if (winningCards.length && shouldWin) return winningCards[0];
 
-  const safeLosing = ordered.filter((card) => !wouldWin(card, trick));
+  const safeLosing = ordered.filter((card) => !wouldWin(card, trick, game.game.contract));
   const throwCounter = safeLosing.find((card) => card.value >= 4 && !isTrula(card));
   if (!declarerSide && throwCounter) return throwCounter;
   return safeLosing[0] || winningCards[0] || ordered[0];
 }
 
 function isNegativeContract(game) {
-  return game.game.contract.id === "klop" || game.game.contract.id === "beggar";
+  return ["klop", "beggar", "openBeggar", "piccolo"].includes(game.game.contract.id);
 }
 
 function randomChoice(items) {

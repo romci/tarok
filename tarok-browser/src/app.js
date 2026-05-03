@@ -5,6 +5,8 @@ import { TarokView } from "./view.js";
 const i18n = new I18n("en");
 const game = new TarokGame({ playerCount: 4, aiLevel: "medium" });
 let autoTimer = null;
+let autoKick = null;
+let autoHoldUntil = 0;
 
 const els = {
   playerCount: document.querySelector("#player-count"),
@@ -18,14 +20,27 @@ const els = {
 
 const view = new TarokView({
   i18n,
+  onBidClick(contractId) {
+    transition(() => game.placeHumanBid(contractId));
+    scheduleAutoTick();
+  },
   onCardClick(cardId) {
-    game.playHumanCard(cardId);
-    render();
+    transition(() => game.playHumanCard(cardId));
+    scheduleAutoTick();
   }
 });
 
-function render() {
-  view.render(game, Boolean(autoTimer));
+function render(previousLayout = null) {
+  document.documentElement.style.setProperty("--pace-ms", `${Number(els.speed.value)}ms`);
+  view.render(game, Boolean(autoTimer), previousLayout);
+}
+
+function transition(action) {
+  const previousLayout = view.captureCardLayout();
+  const result = action();
+  render(previousLayout);
+  holdAutoForAnimation();
+  return result;
 }
 
 function stopAuto() {
@@ -33,17 +48,43 @@ function stopAuto() {
     clearInterval(autoTimer);
     autoTimer = null;
   }
+  if (autoKick) {
+    clearTimeout(autoKick);
+    autoKick = null;
+  }
   els.auto.setAttribute("aria-pressed", "false");
 }
 
 function runAutoTick() {
-  if (game.game.handDone || game.isHumanTurn()) {
-    stopAuto();
+  if (Date.now() < autoHoldUntil) {
+    return;
+  }
+  if (game.isWaitingForHuman()) {
+    return;
+  }
+  if (game.game.handDone) {
+    game.startHand();
     render();
     return;
   }
-  game.step();
-  render();
+  transition(() => game.step());
+}
+
+function scheduleAutoTick(delay = 80) {
+  if (!autoTimer || autoKick) return;
+  const hold = Math.max(0, autoHoldUntil - Date.now());
+  autoKick = setTimeout(() => {
+    autoKick = null;
+    runAutoTick();
+  }, Math.max(delay, hold + 40));
+}
+
+function holdAutoForAnimation() {
+  const animation = game.game.animation;
+  if (!animation) return;
+  const pace = Number(els.speed.value);
+  const multiplier = animation.type === "collect" ? 2.1 : animation.type === "play" ? 1.15 : 0;
+  if (multiplier) autoHoldUntil = Date.now() + pace * multiplier;
 }
 
 function toggleAuto() {
@@ -60,7 +101,6 @@ function toggleAuto() {
 els.playerCount.addEventListener("change", (event) => {
   stopAuto();
   game.startSession({ playerCount: event.target.value, aiLevel: els.aiLevel.value });
-  game.autoplayTurnLimit();
   render();
 });
 
@@ -84,21 +124,22 @@ els.speed.addEventListener("change", () => {
 els.newHand.addEventListener("click", () => {
   stopAuto();
   game.startHand();
-  game.autoplayTurnLimit();
   render();
 });
 
 els.step.addEventListener("click", () => {
   if (game.game.handDone) {
     game.startHand();
-    game.autoplayTurnLimit();
-  } else if (!game.isHumanTurn()) {
-    game.step();
+    render();
+    return;
   }
-  render();
+  transition(() => {
+    if (!game.isWaitingForHuman()) {
+      game.step();
+    }
+  });
 });
 
 els.auto.addEventListener("click", toggleAuto);
 
-game.autoplayTurnLimit();
 render();
