@@ -75,6 +75,7 @@ export class TarokGame {
       declarer: null,
       partner: null,
       partnerKnownPublicly: false,
+      openHandPlayerId: null,
       calledKing: null,
       calledKingInTalon: false,
       talonExchanged: false,
@@ -684,7 +685,9 @@ export class TarokGame {
   }
 
   processCalling() {
-    this.callKing();
+    const player = this.players[this.game.activePlayer];
+    const selectedKing = this.controllers[player.id].chooseCalledKing?.(this, player) || null;
+    this.callKing(selectedKing);
     this.enterNextPostBiddingPhase();
     this.updateHumanWait();
   }
@@ -863,6 +866,9 @@ export class TarokGame {
     }
 
     this.log("winTrick", { playerId: winnerId, trick: this.game.trickNumber + 1 });
+    if (this.game.contract.openHand && this.game.trickNumber === 0) {
+      this.game.openHandPlayerId = this.game.declarer;
+    }
     this.game.animation = {
       type: "collect",
       id: `collect-${this.game.handNumber}-${this.game.trickNumber}-${winnerId}-${Date.now()}`,

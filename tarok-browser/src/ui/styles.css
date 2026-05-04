@@ -162,7 +162,7 @@
   .center-state {
     position: absolute;
     z-index: 1;
-    inset: 174px min(33vw, 380px) 174px min(33vw, 380px);
+    inset: 174px min(24vw, 280px) 226px min(24vw, 280px);
     display: grid;
     grid-template-rows: auto minmax(170px, 1fr) auto;
     gap: 10px;
@@ -463,6 +463,24 @@
     min-height: 286px;
   }
 
+  .table-felt[data-phase="bidding"] .trick-area,
+  .table-felt[data-phase="calling"] .trick-area,
+  .table-felt[data-phase="talon"] .trick-area,
+  .table-felt[data-phase="announcements"] .trick-area {
+    min-height: 150px;
+  }
+
+  .table-felt[data-phase="bidding"] .center-state,
+  .table-felt[data-phase="calling"] .center-state,
+  .table-felt[data-phase="talon"] .center-state,
+  .table-felt[data-phase="announcements"] .center-state {
+    z-index: 3;
+  }
+
+  .table-felt[data-phase="talon"][data-talon-step="discard"] .center-state {
+    z-index: 1;
+  }
+
   .played-card {
     position: absolute;
     display: grid;
@@ -629,6 +647,40 @@
     padding-left: calc(-1 * var(--card-overlap));
   }
 
+  .talon-summary-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .talon-summary-group {
+    display: flex;
+    align-items: flex-start;
+    border: 1px solid rgb(255 250 240 / 18%);
+    border-radius: 7px;
+    padding: 6px 6px 6px 13px;
+    background: rgb(255 250 240 / 7%);
+  }
+
+  .talon-summary-group.selected {
+    border-color: var(--gold);
+    background: rgb(185 133 47 / 22%);
+  }
+
+  .talon-summary-group.rejected {
+    filter: grayscale(0.6);
+    opacity: 0.62;
+  }
+
+  .talon-summary-group .card {
+    margin-left: -7px;
+  }
+
+  .talon-summary-group .card:first-child {
+    margin-left: 0;
+  }
+
   .talon-cards .card {
     margin-left: var(--card-overlap);
   }
@@ -724,7 +776,7 @@
     }
 
     .center-state {
-      inset: 168px 32px 168px 32px;
+      inset: 168px 32px 226px 32px;
     }
 
     .seat {
@@ -804,7 +856,7 @@
     }
 
     .center-state {
-      inset: 140px 16px 270px 16px;
+      inset: 140px 16px 292px 16px;
     }
 
     .side-panel {

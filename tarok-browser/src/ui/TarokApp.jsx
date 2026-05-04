@@ -395,10 +395,16 @@ function actionText(model, t) {
 
 function TarokTable({ actions, model, t }) {
   const animation = model.game.animation;
+  const talonStep = model.game.phase === "talon" && model.game.talonExchange?.selectedIndex !== null ? "discard" : "group";
   return (
     <section aria-label="Tarok table" className="table-wrap">
       <LayoutGroup id="tarok-table">
-        <motion.div className="table-felt" data-animation={animation?.type || ""}>
+        <motion.div
+          className="table-felt"
+          data-animation={animation?.type || ""}
+          data-phase={model.game.phase}
+          data-talon-step={talonStep}
+        >
           {model.players.map((player) => (
             <Seat
               key={player.id}
@@ -449,11 +455,22 @@ function Seat({ model, onCardClick, player, t, winnerPulse }) {
 }
 
 function HandRow({ legalIds, model, onCardClick, player, t }) {
-  if (!player.human) {
+  const openHand = model.game.openHandPlayerId === player.id;
+  if (!player.human && !openHand) {
     return (
       <div className="hand-row">
         {player.hand.map((card) => (
           <Card back card={card} key={card.id} size="small" t={t} zone={`hand-${player.id}`} />
+        ))}
+      </div>
+    );
+  }
+
+  if (openHand && !player.human) {
+    return (
+      <div className="hand-row">
+        {player.hand.map((card) => (
+          <Card card={card} key={card.id} size="small" t={t} zone={`hand-${player.id}`} />
         ))}
       </div>
     );
@@ -735,23 +752,31 @@ function HumanTalon({ actions, model, t }) {
       <p className="contract-detail">
         {exchange.selectedIndex === null ? t("ui.talonPickPrompt") : t("ui.talonDiscardPrompt")}
       </p>
-      <div className="talon-groups">
-        {exchange.groups.map((group, index) => {
-          const selected = index === exchange.selectedIndex;
-          const rejected = exchange.selectedIndex !== null && !selected;
-          return (
+      {exchange.selectedIndex === null ? (
+        <div className="talon-groups">
+          {exchange.groups.map((group, index) => (
             <button
-              className={`talon-group ${selected ? "selected" : ""} ${rejected ? "rejected" : ""}`}
-              disabled={exchange.selectedIndex !== null}
+              className="talon-group"
               key={index}
               onClick={() => actions.onTalonGroupClick(index)}
               type="button"
             >
               {group.map((card) => <Card card={card} key={card.id} size="small" t={t} tracked={false} zone="talon" />)}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="talon-summary-groups">
+          {exchange.groups.map((group, index) => {
+            const selected = index === exchange.selectedIndex;
+            return (
+              <div className={`talon-summary-group ${selected ? "selected" : "rejected"}`} key={index}>
+                {group.map((card) => <Card card={card} key={card.id} size="mini" t={t} tracked={false} zone="talon" />)}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {exchange.selectedIndex !== null && (
         <button className="talon-confirm" disabled={!ready} onClick={actions.onTalonConfirm} type="button">
           {t("ui.confirmTalon")}
