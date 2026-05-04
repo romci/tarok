@@ -2,7 +2,8 @@ import { TarokGame } from "./game.js";
 import { I18n } from "./i18n.js";
 import { TarokView } from "./view.js";
 
-const i18n = new I18n("en");
+const i18n = new I18n("sl");
+i18n.setLanguage("sl");
 const game = new TarokGame({ playerCount: 4, aiLevel: "medium" });
 let autoTimer = null;
 let autoKick = null;
@@ -163,10 +164,16 @@ els.speed.addEventListener("change", () => {
 });
 
 els.newHand.addEventListener("click", () => {
-  stopAuto();
   clearTrickCollection();
   game.startHand();
   render();
+  if (!autoTimer) {
+    autoTimer = setInterval(runAutoTick, Number(els.speed.value));
+    els.auto.setAttribute("aria-pressed", "true");
+    runAutoTick();
+  } else {
+    scheduleAutoTick();
+  }
 });
 
 els.step.addEventListener("click", () => {
