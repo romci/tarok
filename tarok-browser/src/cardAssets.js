@@ -11,12 +11,18 @@ export const CARD_IDS = [
 
 const CARD_INDEX = new Map(CARD_IDS.map((id, index) => [id, index]));
 
-export function cardSpriteStyle(cardId) {
+export function cardSpriteVars(cardId) {
   const index = CARD_INDEX.get(cardId);
-  if (index === undefined) return "";
+  if (index === undefined) return {};
   const column = index % CARD_SPRITE_COLUMNS;
   const row = Math.floor(index / CARD_SPRITE_COLUMNS);
   const x = column * (100 / (CARD_SPRITE_COLUMNS - 1));
   const y = row * (100 / (CARD_SPRITE_ROWS - 1));
-  return `--sprite-x:${x}%;--sprite-y:${y}%;`;
+  return { "--sprite-x": `${x}%`, "--sprite-y": `${y}%` };
+}
+
+export function cardSpriteStyle(cardId) {
+  const vars = cardSpriteVars(cardId);
+  if (!vars["--sprite-x"]) return "";
+  return `--sprite-x:${vars["--sprite-x"]};--sprite-y:${vars["--sprite-y"]};`;
 }

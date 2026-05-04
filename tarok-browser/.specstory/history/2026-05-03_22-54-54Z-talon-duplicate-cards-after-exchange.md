@@ -10001,4 +10001,305 @@ So:
 
 _**Agent (default)**_
 
-Preskakujemo celico z zavajajočim XXII (pop
+Preskakujemo celico z zavajajočim XXII (popotnik); `T21` (Mond) ostane na XXI (indeks 20), `SKIS` (Škis) vzame zadnjo celico z napisom ŠKIS (indeks 22).
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/Roman/Documents/New project/tarok-browser/scripts/build-card-assets.py</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Run the build script to regenerate; users may also run it themselves.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/Roman/Documents/New project/tarok-browser" && python3 -m venv .venv-b && . .venv-b/bin/activate && pip install pillow -q && python scripts/build-card-assets.py && rm -rf .venv-b</summary>
+
+```bash
+cd "/Users/Roman/Documents/New project/tarok-browser" && python3 -m venv .venv-b && . .venv-b/bin/activate && pip install pillow -q && python scripts/build-card-assets.py && rm -rf .venv-b
+```
+
+```
+
+[notice] A new release of pip is available: 26.0 -&gt; 26.1
+[notice] To update, run: pip install --upgrade pip
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Here is what was wrong and what we changed.
+
+### Source sheet (`taroks.png`)
+The last row is: **XIX, XX, XXI (Mond), XXII (duplicate / wrong), ŠKIS**. The deck only has **22** taroks: **I–XXI (Mond)** and **Škis** as the top trump. The extra **XXII** tile is not a real separate card; the true “22nd” trump is the **ŠKIS** tile.
+
+### Build script
+`source_indexes` is now:
+
+```python
+list(range(20)) + [20, 22]
+```
+
+- **T1–T20** → cells **0–19**  
+- **T21 (Mond, XXI)** → cell **20**  
+- **SKIS (Škis)** → cell **22** (jester with “ŠKIS” label)  
+- Cell **21** (the bogus **XXII** traveller) is **not** used.
+
+`python scripts/build-card-assets.py` was run successfully, so **`T21.png`**, **`SKIS.png`**, and **`fronts-sprite.png`** should already match this mapping. If anything still looks off locally, run that script again after pulling the change.
+
+---
+
+_**User**_
+
+how do I build and publish this on my server?
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **15** results in **1** directory</summary>
+
+Directory: **/Users/Roman/Documents/New project/tarok-browser** (15 files)
+
+| File |
+|------|
+| `.specstory/history/2026-05-03_22-54-54Z-talon-duplicate-cards-after-exchange.md` |
+| `.specstory/statistics.json` |
+| `scripts/build-card-assets.py` |
+| `src/i18n.js` |
+| `src/game.js` |
+| `src/cardAssets.js` |
+| `src/rules.js` |
+| `src/view.js` |
+| `src/app.js` |
+| `src/ai.js` |
+| `styles.css` |
+| `.specstory/.project.json` |
+| `.specstory/cli/config.toml` |
+| `README.md` |
+| `index.html` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/Roman/Documents/New project/tarok-browser/index.html</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/Roman/Documents/New project/tarok-browser/README.md</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll provide a clear guide:
+
+- No bundler needed - use a static site with ES modules
+- Requires HTTPS or localhost for some browsers (though same-origin files may work with a server) To deploy, copy the entire project root including index.html, styles.css, src/, and assets/ folders to your server. Optionally rebuild sprites using Python+Pillow before deployment. Serve the files using nginx, Caddy, Apache, Cloudflare Pages, or similar static hosting solutions. Ensure .js files are served with MIME type application/javascript. The README path in the python3 tarok-browser/scripts section needs correction. A DEPLOY.md file will not be created unless specifically requested by the user.</details></think>
+
+_**Agent (default)**_
+
+Ta projekt **ni** npm/Vite aplikacija: to je **statična stran** (`index.html` + `styles.css` + `src/*.js` + `assets/`). Zato **ni** `npm run build` — “build” pomeni le po želji **ponovno zgenerirati karte** in nato **prekopirati mapo** na strežnik.
+
+### 1. (Izbirno) Zgraditi sprite in obraze kart
+Če spreminjaš `assets/cards/source-sheets/taroks.png` ali `build-card-assets.py`:
+
+```bash
+cd "/Users/Roman/Documents/New project/tarok-browser"
+python3 -m venv .venv && . .venv/bin/activate
+pip install pillow
+python scripts/build-card-assets.py
+deactivate
+```
+
+To posodobi `assets/cards/faces/*.png` in `assets/cards/fronts-sprite.png`.
+
+### 2. Kaj objaviš na strežnik
+Na strežnik (kot document root ali podmapo) daj **celotno vsebino** mape projekta, ki jo brskalnik potrebuje, npr.:
+
+- `index.html`
+- `styles.css`
+- `src/` (vsi `.js`)
+- `assets/` (sprite, `back.png`, …)
+
+Ni treba pošiljati `scripts/`, `.venv`, `.specstory`, itd., če ne želiš.
+
+Primer paketa za rsync (prilagodi pot):
+
+```bash
+rsync -avz --delete \
+  --exclude '.git' --exclude '.venv' --exclude '.specstory' --exclude '.venv-build' \
+  "/Users/Roman/Documents/New project/tarok-browser/" \
+  user@tvoj-streznik:/var/www/tarok/
+```
+
+### 3. Strežnik (statični hosting)
+**Nginx** (primer):
+
+```nginx
+server {
+    listen 80;
+    server_name tarok.primer.si;
+    root /var/www/tarok;
+    index index.html;
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+Za čisto statično stran brez client-side routinga zadostuje tudi `root` + privzeto obnašanje; `try_files` ne škodi.
+
+**Caddy**, **Apache** `DocumentRoot`, **S3 + CloudFront**, **Cloudflare Pages**, **GitHub Pages** — vse deluje, če je koren mape tista z `index.html`.
+
+### 4. Pomembno za razvoj
+Aplikacija uporablja **ES module** (`<script type="module" src="src/app.js">`). Odpri jo prek **HTTP(S)**, ne z `file://` (glej tudi `README.md`).
+
+Lokalni preizkus:
+
+```bash
+cd "/Users/Roman/Documents/New project/tarok-browser"
+python3 -m http.server 8080
+```
+
+Nato `http://127.0.0.1:8080/`.
+
+### 5. HTTPS
+V produkciji priporočeno **HTTPS** (Let’s Encrypt + nginx/Caddy). Za igro v brskalniku ni posebnih API-jev, ki bi zahtevali backend.
+
+Če poveš, ali uporabljaš **nginx, Caddy, shared hosting ali S3**, lahko prilagodim točen blok konfiguracije za tvoj primer.
+
+---
+
+_**User**_
+
+regular old shared hosting on Apache
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user seeks deployment instructions for regular shared hosting environments running Apache.</details></think>
+
+_**Agent (default)**_
+
+Na običajnem **Apache shared hostingu** je to še vedno samo **statična vsebina** — naložiš datoteke in to je to.
+
+### 1. Kaj naložiš
+V **document root** (npr. `public_html/`) ali v podmapo (npr. `public_html/tarok/`):
+
+- `index.html`
+- `styles.css`
+- celotna mapa **`src/`** (z vsemi `.js`)
+- celotna mapa **`assets/`** (sprite, `back.png`, `faces/` če jih imaš)
+
+`scripts/` in Python venv **ni** treba na strežnik, razen če želiš tam znova zaganjati build (na shared hostingu običajno ne).
+
+### 2. Struktura mora ostati ista
+`index.html` kliče `src/app.js` in `styles.css` z **relativnimi** potmi — na strežniku mora biti ista hierarhija kot lokalno:
+
+```text
+public_html/
+  index.html
+  styles.css
+  src/
+    app.js
+    game.js
+    …
+  assets/
+    cards/
+      …
+```
+
+Če daš vse v **`public_html/tarok/`**, bo stran na `https://domena/tarok/` in poti še vedno delujejo, ker so relativne.
+
+### 3. Naložitev
+- **FTP/SFTP** (FileZilla, Cyberduck, `scp`, …): povleci mape `src` in `assets` + korenske datoteke.
+- Ali **cPanel → File Manager → Upload**.
+
+### 4. Apache – večinoma nič posebnega
+Privzeti Apache že streže `.html`, `.css`, `.js` z ustreznimi MIME tipi; **ES module** (`<script type="module">`) delujejo, če je `src/app.js` dosegljiv po URL-ju.
+
+Če hosting **silno** doda trailing slash ali redirecte, običajno ne moti statične igre.
+
+### 5. (Izbirno) `.htaccess` v korenu igre
+Običajno **ne** rabiš. Če bi kdaj videl čuden 404 za `.js`, lahko dodaš v mapo z `index.html`:
+
+```apache
+<IfModule mod_mime.c>
+  AddType application/javascript .js
+</IfModule>
+```
+
+### 6. HTTPS
+V cPanelu vklopi **SSL** (Let’s Encrypt / AutoSSL), da je stran na `https://`.
+
+### 7. Posodobitve
+Ob spremembi kode ponovno naloži spremenjene datoteke v `src/` / `assets/` / `styles.css` / `index.html`. Brskalnik lahko zadrži cache — za test uporabi trdni osvežitev ali inkognito.
+
+Če poveš, ali bo igra v **korenu domene** ali v **podmapi**, lahko napišem točno eno vrstico “kam klikneš v cPanelu”, če uporabljaš tipičen layout.
+
+---
+
+_**User**_
+
+- default jezik naj bo Slovenscina
+- klik na "Nova Igra" naj vkljuci tudi "Auto Play"
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants two changes:
+- Default language should be Slovenian (sl) instead of English
+- [Missing second change request]</details></think>

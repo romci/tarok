@@ -4,87 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tarok Table</title>
-    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <h1 id="app-title">Tarok Table</h1>
-          <p id="subtitle">Slovenian-style Tarok simulation for AI seats</p>
-        </div>
-        <div class="toolbar" aria-label="Game controls">
-          <label class="select-label" data-label-for="player-count">
-            Seats
-            <select id="player-count">
-              <option value="4" selected>4 players</option>
-              <option value="3">3 players</option>
-            </select>
-          </label>
-          <label class="select-label" data-label-for="ai-level">
-            AI level
-            <select id="ai-level">
-              <option value="easy">Easy</option>
-              <option value="medium" selected>Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </label>
-          <label class="select-label" data-label-for="language">
-            Language
-            <select id="language">
-              <option value="en">English</option>
-              <option value="sl" selected>Slovenščina</option>
-            </select>
-          </label>
-          <label class="select-label" data-label-for="speed">
-            Speed
-            <select id="speed">
-              <option value="1800">Study</option>
-              <option value="1050" selected>Table</option>
-              <option value="650">Fast</option>
-            </select>
-          </label>
-          <button id="new-hand" type="button">New Hand</button>
-          <button id="step" type="button">Step</button>
-          <button id="auto" type="button" aria-pressed="false">Auto Play</button>
-        </div>
-      </header>
-
-      <section class="score-strip" id="score-strip" aria-label="Scoreboard"></section>
-      <section class="action-prompt" id="action-prompt" aria-live="polite"></section>
-
-      <section class="table-wrap" aria-label="Tarok table">
-        <div class="table-felt">
-          <section class="seat seat-north" id="seat-2"></section>
-          <section class="seat seat-east" id="seat-1"></section>
-          <section class="seat seat-south" id="seat-0"></section>
-          <section class="seat seat-west" id="seat-3"></section>
-
-          <section class="center-state" aria-label="Current trick and contract">
-            <div class="contract-panel" id="contract-panel"></div>
-            <div class="trick-area" id="trick-area"></div>
-            <div class="talon-panel" id="talon-panel"></div>
-          </section>
-        </div>
-      </section>
-
-      <aside class="side-panel">
-        <section class="panel-section">
-          <h2 id="hand-log-title">Hand Log</h2>
-          <ol id="log" class="log"></ol>
-        </section>
-        <section class="panel-section">
-          <h2 id="rules-title">Rules Model</h2>
-          <ul class="rule-list" id="rules-list">
-            <li>54-card Tarok deck: 22 taroks plus four 8-card suits.</li>
-            <li>Anti-clockwise play, follow suit, trump when void.</li>
-            <li>3-card Tarok point counting, 36 points to win positive contracts.</li>
-            <li>AI bidding, talon exchange, trick play, bonuses, klop, and cumulative score.</li>
-            <li>Network seat controller is stubbed for later multiplayer transport.</li>
-          </ul>
-        </section>
-      </aside>
-    </main>
-    <script type="module" src="src/app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
