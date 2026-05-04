@@ -76,12 +76,12 @@ export function legalBidContractsFromSnapshot(game) {
   if (bidding.forehandChoice) return CONTRACT_SEQUENCE;
   const currentRank = bidding.currentContract ? bidding.currentContract.rank : -1;
   if (game.playerCount === 3) {
-    return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.rank > currentRank);
+    return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.id !== "three" && contract.rank > currentRank);
   }
   const higherPriority = bidding.highestBidder !== null
     && turnDistance(game.forehand, game.activePlayer, game.playerCount) < turnDistance(game.forehand, bidding.highestBidder, game.playerCount);
   const minimumRank = higherPriority ? currentRank : currentRank + 1;
-  return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.rank >= minimumRank);
+  return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.id !== "three" && contract.rank >= minimumRank);
 }
 
 function chooseForehandContract(game, player, level, legal) {

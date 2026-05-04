@@ -162,11 +162,15 @@
   .center-state {
     position: absolute;
     z-index: 1;
-    inset: 174px min(24vw, 280px) 226px min(24vw, 280px);
+    top: 174px;
+    bottom: 226px;
+    left: 50%;
+    width: min(42vw, 800px);
+    min-width: 460px;
+    transform: translateX(-50%);
     display: grid;
-    grid-template-rows: auto minmax(170px, 1fr) auto;
+    grid-template-rows: auto minmax(170px, 1fr);
     gap: 10px;
-    min-width: 280px;
   }
 
   .side-panel {
@@ -296,7 +300,8 @@
 
   .seat-east,
   .seat-west {
-    width: min(25vw, 350px);
+    width: min(22vw, 330px);
+    min-height: 136px;
   }
 
   .seat.current {
@@ -311,6 +316,11 @@
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
+  }
+
+  .seat-north.compact-hidden-seat {
+    width: min(22vw, 330px);
+    min-height: 136px;
   }
 
   .seat-south {
@@ -365,6 +375,21 @@
     margin-left: 0;
   }
 
+  .compact-hidden-seat .hand-row {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-height: calc(var(--card-small-h) + 4px);
+    padding-left: 0;
+  }
+
+  .compact-hidden-seat .hand-row > * {
+    margin-left: clamp(-44px, -3.1vw, -32px);
+  }
+
+  .compact-hidden-seat .hand-row > *:first-child {
+    margin-left: 0;
+  }
+
   .card-button {
     display: inline-grid;
     min-height: 0;
@@ -392,6 +417,60 @@
     padding: 12px;
     color: var(--paper-2);
     background: rgb(11 29 25 / 70%);
+  }
+
+  .talon-panel {
+    position: absolute;
+    z-index: 1;
+    top: 20px;
+    right: 20px;
+    width: min(22vw, 330px);
+    min-width: 280px;
+    max-width: 330px;
+  }
+
+  .tutorial-panel {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    z-index: 5;
+    display: grid;
+    gap: 5px;
+    width: min(26vw, 360px);
+    min-width: 300px;
+    border: 1px solid rgb(185 132 48 / 58%);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--paper-2);
+    background: rgb(11 29 25 / 88%);
+    box-shadow: 0 16px 34px rgb(0 0 0 / 28%);
+    backdrop-filter: blur(10px);
+  }
+
+  .tutorial-eyebrow {
+    color: rgb(255 250 240 / 64%);
+    font-size: 11px;
+    font-weight: 850;
+    text-transform: uppercase;
+  }
+
+  .tutorial-phase {
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .tutorial-action {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 21px;
+    font-weight: 760;
+    line-height: 1.08;
+  }
+
+  .tutorial-panel p {
+    color: rgb(255 250 240 / 76%);
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .contract-title {
@@ -465,9 +544,12 @@
 
   .table-felt[data-phase="bidding"] .trick-area,
   .table-felt[data-phase="calling"] .trick-area,
-  .table-felt[data-phase="talon"] .trick-area,
   .table-felt[data-phase="announcements"] .trick-area {
     min-height: 150px;
+  }
+
+  .table-felt[data-phase="talon"] .trick-area {
+    min-height: 54px;
   }
 
   .table-felt[data-phase="bidding"] .center-state,
@@ -475,6 +557,8 @@
   .table-felt[data-phase="talon"] .center-state,
   .table-felt[data-phase="announcements"] .center-state {
     z-index: 3;
+    align-content: start;
+    grid-template-rows: auto auto;
   }
 
   .table-felt[data-phase="talon"][data-talon-step="discard"] .center-state {
@@ -489,6 +573,10 @@
     color: var(--paper-2);
     font-weight: 830;
     text-shadow: 0 2px 4px rgb(0 0 0 / 42%);
+  }
+
+  .trick-player-name {
+    min-width: max-content;
   }
 
   .waiting-card {
@@ -506,6 +594,10 @@
     transform: translateX(-50%);
   }
 
+  .trick-seat-south .trick-player-name {
+    order: 2;
+  }
+
   .trick-seat-north {
     left: 50%;
     top: 12px;
@@ -514,22 +606,28 @@
 
   .trick-seat-east {
     top: 50%;
-    right: 18px;
+    right: clamp(88px, 13vw, 210px);
     grid-template-columns: auto auto;
     align-items: center;
+    justify-items: start;
     transform: translateY(-50%);
   }
 
-  .trick-seat-east span {
-    order: -1;
+  .trick-seat-east .trick-player-name {
+    order: 2;
   }
 
   .trick-seat-west {
     top: 50%;
-    left: 18px;
+    left: clamp(88px, 13vw, 210px);
     grid-template-columns: auto auto;
     align-items: center;
+    justify-items: end;
     transform: translateY(-50%);
+  }
+
+  .trick-seat-west .trick-player-name {
+    order: -1;
   }
 
   .card {
@@ -689,9 +787,33 @@
     margin-left: 0;
   }
 
+  .table-felt[data-phase="play"] .talon-panel,
+  .table-felt[data-phase="trickComplete"] .talon-panel {
+    top: 20px;
+    right: auto;
+    bottom: auto;
+    left: 20px;
+    width: min(22vw, 330px);
+    min-width: 280px;
+    max-width: 330px;
+    padding: 10px;
+  }
+
+  .table-felt[data-phase="play"] .talon-panel .contract-detail,
+  .table-felt[data-phase="trickComplete"] .talon-panel .contract-detail {
+    max-width: 48ch;
+    font-size: 12px;
+  }
+
+  .table-felt[data-phase="play"] .talon-cards .card.small,
+  .table-felt[data-phase="trickComplete"] .talon-cards .card.small {
+    --face-w: var(--card-mini-w);
+    --face-h: var(--card-mini-h);
+  }
+
   .taken-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 6px;
     min-height: 48px;
     margin-top: 8px;
@@ -701,15 +823,26 @@
 
   .taken-cards {
     display: flex;
-    padding-left: 9px;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    padding-left: 18px;
+    overflow: hidden;
   }
 
   .taken-cards .card {
-    margin-left: -8px;
+    margin-left: -10px;
   }
 
   .taken-cards .card:first-child {
     margin-left: 0;
+  }
+
+  .taken-cards .taken-face-down {
+    margin-left: -22px;
+  }
+
+  .taken-cards .taken-face-up {
+    margin-left: -8px;
   }
 
   .panel-section {
@@ -776,7 +909,27 @@
     }
 
     .center-state {
-      inset: 168px 32px 226px 32px;
+      top: 168px;
+      right: 32px;
+      bottom: 226px;
+      left: 32px;
+      width: auto;
+      min-width: 0;
+      transform: none;
+    }
+
+    .talon-panel {
+      top: 16px;
+      right: 32px;
+      left: auto;
+      width: min(29vw, 330px);
+      min-width: 260px;
+      max-width: 330px;
+    }
+
+    .tutorial-panel {
+      width: min(32vw, 340px);
+      min-width: 270px;
     }
 
     .seat {
@@ -785,7 +938,11 @@
 
     .seat-east,
     .seat-west {
-      width: min(30vw, 350px);
+      width: min(29vw, 330px);
+    }
+
+    .seat-north.compact-hidden-seat {
+      width: min(29vw, 330px);
     }
 
     .side-panel {
@@ -856,7 +1013,41 @@
     }
 
     .center-state {
-      inset: 140px 16px 292px 16px;
+      top: 140px;
+      right: 16px;
+      bottom: 292px;
+      left: 16px;
+      width: auto;
+      min-width: 0;
+      transform: none;
+    }
+
+    .talon-panel {
+      top: auto;
+      right: 16px;
+      bottom: 178px;
+      left: 16px;
+      width: auto;
+      min-width: 0;
+      max-width: none;
+    }
+
+    .table-felt[data-phase="play"] .talon-panel,
+    .table-felt[data-phase="trickComplete"] .talon-panel {
+      right: 16px;
+      bottom: 140px;
+      left: 16px;
+      width: auto;
+      min-width: 0;
+      max-width: none;
+    }
+
+    .tutorial-panel {
+      right: 16px;
+      bottom: 16px;
+      left: 16px;
+      width: auto;
+      min-width: 0;
     }
 
     .side-panel {

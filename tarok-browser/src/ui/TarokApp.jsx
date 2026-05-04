@@ -16,12 +16,14 @@ import {
   seatMeta,
   seatPosition
 } from "./formatters.js";
+import { buildTutorialSuggestion } from "./tutorialAdvisor.js";
 
 const DEFAULT_SETTINGS = {
   playerCount: "4",
   aiLevel: "medium",
   language: "sl",
-  speed: "1050"
+  speed: "1050",
+  tutorial: "off"
 };
 
 export function TarokApp() {
@@ -259,7 +261,7 @@ export function TarokApp() {
         />
         <ScoreStrip model={model} t={t} />
         <ActionPrompt model={model} t={t} />
-        <TarokTable actions={actions} model={model} t={t} />
+        <TarokTable actions={actions} model={model} settings={settings} t={t} />
         <SidePanel model={model} t={t} />
       </main>
     </MotionConfig>
@@ -315,6 +317,15 @@ function TopBar({ autoRunning, onAutoToggle, onNewHand, onSettingChange, onStep,
           <option value="1050">{t("ui.table")}</option>
           <option value="650">{t("ui.fast")}</option>
         </IconSelect>
+        <button
+          aria-pressed={settings.tutorial === "on"}
+          className="tool-button"
+          onClick={() => onSettingChange("tutorial", settings.tutorial === "on" ? "off" : "on")}
+          type="button"
+        >
+          <Brain size={16} />
+          <span>{t("ui.tutorial")}</span>
+        </button>
         <button className="tool-button" onClick={onNewHand} type="button">
           <Plus size={16} />
           <span>{t("ui.newHand")}</span>
@@ -393,9 +404,10 @@ function actionText(model, t) {
   return t("ui.actionAiTurn", { player: playerName(model.players[game.activePlayer], t) });
 }
 
-function TarokTable({ actions, model, t }) {
+function TarokTable({ actions, model, settings, t }) {
   const animation = model.game.animation;
   const talonStep = model.game.phase === "talon" && model.game.talonExchange?.selectedIndex !== null ? "discard" : "group";
+  const tutorialSuggestion = settings.tutorial === "on" ? buildTutorialSuggestion(model, t) : null;
   return (
     <section aria-label="Tarok table" className="table-wrap">
       <LayoutGroup id="tarok-table">
@@ -418,11 +430,23 @@ function TarokTable({ actions, model, t }) {
           <section aria-label="Current trick and contract" className="center-state">
             <ContractPanel actions={actions} model={model} t={t} />
             <TrickArea model={model} t={t} />
-            <TalonPanel actions={actions} model={model} t={t} />
           </section>
+          <TalonPanel actions={actions} model={model} t={t} />
+          {tutorialSuggestion && <TutorialPanel suggestion={tutorialSuggestion} t={t} />}
         </motion.div>
       </LayoutGroup>
     </section>
+  );
+}
+
+function TutorialPanel({ suggestion, t }) {
+  return (
+    <motion.aside className="tutorial-panel" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} layout>
+      <div className="tutorial-eyebrow">{t("tutorial.title")}</div>
+      <div className="tutorial-phase">{suggestion.phase}</div>
+      <div className="tutorial-action">{suggestion.action}</div>
+      <p>{suggestion.reason}</p>
+    </motion.aside>
   );
 }
 
@@ -434,7 +458,8 @@ function Seat({ model, onCardClick, player, t, winnerPulse }) {
     "seat",
     `seat-${position}`,
     model.game.activePlayer === player.id && !model.game.handDone ? "current" : "",
-    player.human ? "human-seat" : ""
+    player.human ? "human-seat" : "",
+    !player.human && model.game.openHandPlayerId !== player.id ? "compact-hidden-seat" : ""
   ].filter(Boolean).join(" ");
 
   return (
@@ -449,7 +474,7 @@ function Seat({ model, onCardClick, player, t, winnerPulse }) {
         <span className="seat-meta">{seatMeta(model, player, t)}</span>
       </div>
       <HandRow legalIds={legalIds} model={model} onCardClick={onCardClick} player={player} t={t} />
-      <TakenRow player={player} t={t} />
+      <TakenRow model={model} player={player} t={t} />
     </motion.section>
   );
 }
@@ -507,19 +532,44 @@ function HandRow({ legalIds, model, onCardClick, player, t }) {
   );
 }
 
-function TakenRow({ player, t }) {
-  const cards = player.taken.slice(-6);
+function TakenRow({ model, player, t }) {
+  const { cards, faceUpIds } = takenCardVisibility(model, player);
   if (!cards.length) return null;
   return (
     <div className="taken-row">
       <div className="taken-label">{t("ui.takenPile")}</div>
       <div className="taken-cards">
-        {cards.map((card) => (
-          <Card card={card} key={card.id} size="mini" t={t} zone={`taken-${player.id}`} />
-        ))}
+        {cards.map((card) => {
+          const faceUp = faceUpIds.has(card.id);
+          return (
+            <Card
+              back={!faceUp}
+              card={card}
+              key={card.id}
+              className={faceUp ? "taken-face-up" : "taken-face-down"}
+              size="mini"
+              t={t}
+              tracked={faceUp}
+              zone={`taken-${player.id}`}
+            />
+          );
+        })}
       </div>
     </div>
   );
+}
+
+function takenCardVisibility(model, player) {
+  const cards = player.taken;
+  if (player.human || model.aiLevel === "easy") {
+    return { cards, faceUpIds: new Set(cards.map((card) => card.id)) };
+  }
+  if (model.aiLevel === "hard") return { cards, faceUpIds: new Set() };
+  const lastTrick = model.game.lastTrick;
+  const faceUpIds = lastTrick && lastTrick.winnerId === player.id
+    ? new Set(lastTrick.plays.map((play) => play.card.id))
+    : new Set();
+  return { cards, faceUpIds };
 }
 
 function ContractPanel({ actions, model, t }) {
@@ -658,8 +708,8 @@ function TrickArea({ model, t }) {
     <div className="trick-area">
       {game.currentTrick.map((play) => (
         <motion.div className={`played-card trick-seat-${seatPosition(play.playerId)}`} key={play.card.id}>
+          <span className="trick-player-name">{playerName(model.players[play.playerId], t)}</span>
           <Card card={play.card} t={t} zone="trick" />
-          <span>{playerName(model.players[play.playerId], t)}</span>
         </motion.div>
       ))}
     </div>

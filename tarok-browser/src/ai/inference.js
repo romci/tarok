@@ -8,12 +8,13 @@ export function buildInference(tarokGame, playerId) {
   const unknownCards = createDeck().filter((card) => !visibleIds.has(card.id));
   const voids = inferVoids(tarokGame);
   const playedCards = [
-    ...tarokGame.activePlayers().flatMap((player) => player.taken),
-    ...game.currentTrick.map((play) => play.card),
-    ...(game.lastTrick?.plays || []).map((play) => play.card)
+    ...(game.completedTricks || []).flatMap((trick) => trick.plays.map((play) => play.card)),
+    ...game.currentTrick.map((play) => play.card)
   ];
   const playedIds = new Set(playedCards.map((card) => card.id));
   const playedTaroks = playedCards.filter(isTarok);
+  const knownTalonCards = [...(game.talonTaken || []), ...(game.talonRejected || [])];
+  const knownTalonTaroks = knownTalonCards.filter(isTarok);
   return {
     self,
     visible,
@@ -23,7 +24,10 @@ export function buildInference(tarokGame, playerId) {
     playedCards,
     playedIds,
     playedTaroks,
-    remainingTarokCount: 22 - playedTaroks.length - self.hand.filter(isTarok).length,
+    knownTalonCards,
+    calledKingOuted: Boolean(game.calledKing && game.partnerKnownPublicly),
+    knownPartnerId: game.partnerKnownPublicly ? game.partner : knownPartnerForSelf(tarokGame, playerId),
+    remainingTarokCount: 22 - playedTaroks.length - knownTalonTaroks.length - self.hand.filter(isTarok).length,
     partnerProbability: partnerProbability(tarokGame, playerId, unknownCards)
   };
 }
@@ -51,7 +55,8 @@ function visibleCards(tarokGame, playerId) {
 function inferVoids(tarokGame) {
   const voids = new Map();
   const tricks = [];
-  if (tarokGame.game.lastTrick) tricks.push(tarokGame.game.lastTrick.plays);
+  for (const completed of tarokGame.game.completedTricks || []) tricks.push(completed.plays);
+  if (tarokGame.game.lastTrick && !tricks.includes(tarokGame.game.lastTrick.plays)) tricks.push(tarokGame.game.lastTrick.plays);
   if (tarokGame.game.currentTrick.length) tricks.push(tarokGame.game.currentTrick);
 
   for (const trick of tricks) {
@@ -67,6 +72,15 @@ function inferVoids(tarokGame) {
     }
   }
   return voids;
+}
+
+function knownPartnerForSelf(tarokGame, playerId) {
+  const game = tarokGame.game;
+  if (!game.calledKing || game.partner === null || game.partner === undefined) return null;
+  if (playerId === game.declarer) return game.partner;
+  const selfHasCalledKing = tarokGame.players[playerId].hand.some((card) => card.id === game.calledKing.id)
+    || tarokGame.players[playerId].taken.some((card) => card.id === game.calledKing.id);
+  return selfHasCalledKing ? game.declarer : null;
 }
 
 function partnerProbability(tarokGame, playerId, unknownCards) {

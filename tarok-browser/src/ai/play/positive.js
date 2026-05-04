@@ -4,7 +4,7 @@ import { remainingHigherTaroks } from "../inference.js";
 import { cardRisk, losingCards, lowestBy, orderedHighToLow, orderedLowToHigh, trickPoints, winningCards } from "../utils.js";
 
 export function playPositive(tarokGame, player, legalCards, level = "medium", inference = null) {
-  const declarerSide = tarokGame.isDeclarerSide(player.id);
+  const declarerSide = knownDeclarerSide(tarokGame, player.id, player, inference);
   const trick = tarokGame.game.currentTrick;
   const contract = tarokGame.game.contract;
   if (!trick.length) return leadPositive(tarokGame, player, legalCards, declarerSide, level, inference);
@@ -13,8 +13,9 @@ export function playPositive(tarokGame, player, legalCards, level = "medium", in
   const losing = losingCards(legalCards, trick, contract);
   const currentPoints = trickPoints(trick);
   const lastToPlay = trick.length === tarokGame.playerCount - 1;
+  const currentWinner = currentWinnerId(tarokGame, trick);
   const ownSideWinning = trick.length
-    ? declarerSide === tarokGame.isDeclarerSide(currentWinnerId(tarokGame, trick))
+    ? sameKnownSide(tarokGame, player.id, currentWinner, player, declarerSide, inference)
     : false;
   const shouldWin = lastToPlay
     ? !ownSideWinning && currentPoints >= (declarerSide ? 4 : 6)
@@ -25,12 +26,12 @@ export function playPositive(tarokGame, player, legalCards, level = "medium", in
   }
 
   if (losing.length) {
-    const canFeedPartner = ownSideWinning && currentPoints >= 4;
+    const canFeedPartner = ownSideWinning && currentPoints >= 4 && knownPartnerOrSelf(tarokGame, player.id, currentWinner, inference);
     if (canFeedPartner) {
       const counter = orderedHighToLow(losing).find((card) => card.value >= 3 && !isTrula(card));
       if (counter) return counter;
     }
-    return lowestBy(losing, (card) => dumpCost(card, declarerSide, level));
+    return lowestBy(losing, (card) => dumpCost(card, level));
   }
 
   return lowestBy(winners, (card) => winCost(card, tarokGame, inference));
@@ -62,10 +63,11 @@ function winCost(card, tarokGame, inference) {
   return cardPower(card) * 0.12 + card.value * 2.5 + ultimoPenalty + mondRisk;
 }
 
-function dumpCost(card, declarerSide, level) {
-  const keepCountersForOwnSide = declarerSide ? card.value * 2 : -card.value * 1.8;
+function dumpCost(card, level) {
+  const pointLeak = card.value * 4.5;
   const hardControl = level === "hard" && isTarok(card) ? cardRisk(card) * 0.2 : 0;
-  return keepCountersForOwnSide + hardControl + cardPower(card) * 0.02;
+  const highSuitLeak = !isTarok(card) && card.value >= 3 ? card.value * 3 : 0;
+  return pointLeak + highSuitLeak + hardControl + cardPower(card) * 0.02;
 }
 
 function currentWinnerId(tarokGame, trick) {
@@ -84,4 +86,33 @@ function nextPlayerId(tarokGame, playerId) {
     next = (next + 1) % tarokGame.playerCount;
   } while (!tarokGame.players[next]?.active);
   return next;
+}
+
+function knownDeclarerSide(tarokGame, playerId, player, inference) {
+  const game = tarokGame.game;
+  if (playerId === game.declarer) return true;
+  if (!game.calledKing || game.partnerKnownPublicly) return tarokGame.isDeclarerSide(playerId);
+  if (inference?.knownPartnerId === game.declarer) return true;
+  return player.hand.some((card) => card.id === game.calledKing.id);
+}
+
+function sameKnownSide(tarokGame, playerId, otherId, player, playerDeclarerSide, inference) {
+  if (playerId === otherId) return true;
+  const otherDeclarerSide = knownDeclarerSide(tarokGame, otherId, tarokGame.players[otherId], inference);
+  if (playerDeclarerSide && otherDeclarerSide) return true;
+  if (!playerDeclarerSide && !otherDeclarerSide && partnershipKnownEnough(tarokGame, player, inference)) return true;
+  return false;
+}
+
+function knownPartnerOrSelf(tarokGame, playerId, otherId, inference) {
+  if (playerId === otherId) return true;
+  if (tarokGame.game.partnerKnownPublicly) return tarokGame.isDeclarerSide(playerId) === tarokGame.isDeclarerSide(otherId);
+  return inference?.knownPartnerId === otherId;
+}
+
+function partnershipKnownEnough(tarokGame, player, inference) {
+  return tarokGame.game.partnerKnownPublicly
+    || !tarokGame.game.calledKing
+    || player.id === tarokGame.game.declarer
+    || inference?.knownPartnerId !== null;
 }

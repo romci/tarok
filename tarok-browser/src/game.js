@@ -83,6 +83,7 @@ export class TarokGame {
       announcementsDone: false,
       announcementContext: null,
       currentTrick: [],
+      completedTricks: [],
       lastTrick: null,
       trickNumber: 0,
       leader: null,
@@ -300,12 +301,12 @@ export class TarokGame {
     if (bidding.forehandChoice) return CONTRACT_SEQUENCE;
     const currentRank = bidding.currentContract ? bidding.currentContract.rank : -1;
     if (this.playerCount === 3) {
-      return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.rank > currentRank);
+      return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.id !== "three" && contract.rank > currentRank);
     }
     const higherPriority = bidding.highestBidder !== null && this.hasHigherBidPriority(this.game.activePlayer, bidding.highestBidder);
     const minimumRank = higherPriority ? currentRank : currentRank + 1;
     return CONTRACT_SEQUENCE.filter((contract) => {
-      if (contract.id === "klop") return false;
+      if (contract.id === "klop" || contract.id === "three") return false;
       return contract.rank >= minimumRank;
     });
   }
@@ -462,10 +463,10 @@ export class TarokGame {
       }
       return bidding.totalActions >= playerCount;
     }
-    const liveOpponents = this.activePlayers()
+    const passedOpponents = this.activePlayers()
       .map((player) => player.id)
-      .filter((id) => id !== bidding.highestBidder && !bidding.passedPlayers.includes(id)).length;
-    return bidding.passesSinceRaise >= liveOpponents;
+      .filter((id) => id !== bidding.highestBidder && bidding.passedPlayers.includes(id)).length;
+    return passedOpponents >= playerCount - 1;
   }
 
   advanceBidder() {
@@ -882,6 +883,7 @@ export class TarokGame {
       winnerId,
       plays: this.game.currentTrick.map((play) => ({ ...play }))
     };
+    this.game.completedTricks.push(this.game.lastTrick);
     this.game.currentTrick = [];
 
     if (this.activePlayers().every((player) => player.hand.length === 0)) {
