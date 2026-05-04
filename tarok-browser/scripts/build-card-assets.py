@@ -14,7 +14,7 @@ RED_SHEET = SOURCE_DIR / "red-suits.png"
 BLACK_SHEET = SOURCE_DIR / "black-suits.png"
 TAROK_SHEET = SOURCE_DIR / "taroks.png"
 
-TAROK_IDS = [f"T{number}" for number in range(1, 21)] + ["T22", "SKIS"]
+TAROK_IDS = [f"T{number}" for number in range(1, 21)] + ["T21", "SKIS"]
 SUITS = [
     ("clubs", "C", ["K", "Q", "N", "J", "10", "9", "8", "7"]),
     ("spades", "S", ["K", "Q", "N", "J", "10", "9", "8", "7"]),
@@ -63,9 +63,9 @@ def build_taroks():
     for y_range, x_ranges in TAROK_ROWS:
         source_cells.extend((x_range, y_range) for x_range in x_ranges)
 
-    # Source sheet contains XXI and XXII plus Škis. This ruleset uses T22 as Mond
-    # and a separate SKIS figure, so XXI is intentionally skipped in the 54-card deck.
-    source_indexes = list(range(20)) + [21, 22]
+    # Last row: XIX, XX, XXI (Mond), a duplicate “XXII” (wrong art — skip), then ŠKIS.
+    # Game deck: T21 = Mond (XXI), SKIS = Škis (22nd trump; use ŠKIS cell, not the XXII cell).
+    source_indexes = list(range(20)) + [20, 22]
     for card_id, source_index in zip(TAROK_IDS, source_indexes):
         x_range, y_range = source_cells[source_index]
         crop_card(sheet, x_range, y_range).save(FACE_DIR / f"{card_id}.png")

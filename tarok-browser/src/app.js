@@ -21,6 +21,10 @@ const els = {
 
 const view = new TarokView({
   i18n,
+  onAnnouncementAction(choice) {
+    transition(() => game.commitHumanAnnouncement(choice));
+    scheduleAutoTick();
+  },
   onBidClick(contractId) {
     transition(() => game.placeHumanBid(contractId));
     scheduleAutoTick();

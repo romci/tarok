@@ -30,6 +30,11 @@ export class SeatController {
   chooseCard(game, legalCards) {
     return legalCards[0];
   }
+
+  /** @returns {{ type: "pass" } | { type: "gameDouble" } | { type: "announce", bonus: string }} */
+  chooseAnnouncement(game, player) {
+    return { type: "pass" };
+  }
 }
 
 export class HumanController extends SeatController {
@@ -51,6 +56,10 @@ export class HumanController extends SeatController {
   }
 
   chooseCard() {
+    return null;
+  }
+
+  chooseAnnouncement() {
     return null;
   }
 }

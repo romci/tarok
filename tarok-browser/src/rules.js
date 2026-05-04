@@ -23,13 +23,14 @@ export const CONTRACTS = {
 
 export const CONTRACT_SEQUENCE = Object.values(CONTRACTS).sort((a, b) => a.rank - b.rank);
 export const NORMAL_CONTRACT_IDS = new Set(["three", "two", "one", "soloThree", "soloTwo", "soloOne"]);
-export const TAROK_IDS = [...Array.from({ length: 20 }, (_, index) => `T${index + 1}`), "T22", "SKIS"];
+export const TAROK_IDS = [...Array.from({ length: 20 }, (_, index) => `T${index + 1}`), "T21", "SKIS"];
 
 export function createDeck() {
   const cards = [];
   for (const id of TAROK_IDS) {
-    const tarok = id === "SKIS" ? 23 : Number(id.slice(1));
-    const name = id === "SKIS" ? "Škis" : id === "T22" ? "Mond" : id === "T1" ? "Pagat" : roman(tarok);
+    // T21 = Mond (XXI); strength 22 so it ranks above T20 and below SKIS (23).
+    const tarok = id === "SKIS" ? 23 : id === "T21" ? 22 : Number(id.slice(1));
+    const name = id === "SKIS" ? "Škis" : id === "T21" ? "XXI" : id === "T1" ? "Pagat" : roman(tarok);
     cards.push({
       id,
       type: "tarok",
@@ -92,7 +93,7 @@ export function legalCards(hand, trick, contract) {
 export function trickWinner(trick) {
   const contract = trick.contract;
   const tarokIds = new Set(trick.filter((play) => isTarok(play.card)).map((play) => play.card.id));
-  if (tarokIds.has("T1") && tarokIds.has("T22") && tarokIds.has("SKIS")) {
+  if (tarokIds.has("T1") && tarokIds.has("T21") && tarokIds.has("SKIS")) {
     if (contract && contract.mode === "colourValat" && !isTarok(trick[0].card)) return trick[0].playerId;
     return trick.find((play) => play.card.id === "T1").playerId;
   }
@@ -119,8 +120,16 @@ export function countTarokPoints(cards) {
   return total - groups * 2 - (remainder ? 1 : 0);
 }
 
+/** Human-facing tarok name: never "XXII" — Mond is XXI, Škis is not numbered. */
+export function tarokLabel(card, t) {
+  if (card.id === "SKIS") return t("tarok.skis");
+  if (card.id === "T21") return t("tarok.mond");
+  if (card.id === "T1") return t("tarok.pagat");
+  return roman(Number(card.id.slice(1)));
+}
+
 export function cardLabel(card, t) {
-  if (isTarok(card)) return `${card.rank} ${t("card.tarok")}`;
+  if (isTarok(card)) return `${tarokLabel(card, t)} ${t("card.tarok")}`;
   return `${rankLabel(card.rank, t)} ${t(card.suitLabelKey)}`;
 }
 
@@ -183,7 +192,7 @@ export function signed(value) {
 
 export function bonusSet(cards) {
   return {
-    trula: ["T1", "T22", "SKIS"].every((id) => cards.some((card) => card.id === id)),
+    trula: ["T1", "T21", "SKIS"].every((id) => cards.some((card) => card.id === id)),
     kings: SUITS.every((suit) => cards.some((card) => card.id === `${suit.short}K`))
   };
 }
@@ -201,7 +210,7 @@ function negativeLegalSubset(cards, trick, contract) {
 }
 
 function isTrulaId(id) {
-  return id === "T1" || id === "T22" || id === "SKIS";
+  return id === "T1" || id === "T21" || id === "SKIS";
 }
 
 function suitIndex(suitId) {

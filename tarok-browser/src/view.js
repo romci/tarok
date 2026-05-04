@@ -1,14 +1,22 @@
 import { canDiscard, cardLabel, isTarok, maxTricks } from "./rules.js";
 import { cardSpriteStyle } from "./cardAssets.js";
 
+function formatCardList(cards, t) {
+  if (!cards || cards.length === 0) {
+    return "—";
+  }
+  return cards.map((card) => cardLabel(card, t)).join(", ");
+}
+
 export class TarokView {
-  constructor({ i18n, onBidClick, onKingCallClick, onCardClick, onTalonGroupClick, onTalonConfirm }) {
+  constructor({ i18n, onBidClick, onKingCallClick, onCardClick, onTalonGroupClick, onTalonConfirm, onAnnouncementAction }) {
     this.i18n = i18n;
     this.onBidClick = onBidClick;
     this.onKingCallClick = onKingCallClick;
     this.onCardClick = onCardClick;
     this.onTalonGroupClick = onTalonGroupClick;
     this.onTalonConfirm = onTalonConfirm;
+    this.onAnnouncementAction = onAnnouncementAction || (() => {});
     this.els = {
       title: document.querySelector("#app-title"),
       subtitle: document.querySelector("#subtitle"),
@@ -46,6 +54,7 @@ export class TarokView {
     this.bindBidButtons();
     this.bindKingCallButtons();
     this.bindTalonControls();
+    this.bindAnnouncementButtons();
     this.animateCardTransition(previousLayout, model.game.animation);
     this.animateLatestMove(model);
   }
@@ -160,10 +169,25 @@ export class TarokView {
       return;
     }
 
+    if (game.phase === "announcements") {
+      const active = model.players[game.activePlayer];
+      const ctx = game.announcementContext;
+      const multLabel = ctx && ctx.gameDoubles > 0 ? ` ×${2 ** ctx.gameDoubles}` : "";
+      this.els.contract.innerHTML = `
+        <div class="contract-title">
+          <span>${this.t("ui.phaseAnnouncements")}</span>
+          <span>${this.playerName(active)}</span>
+        </div>
+        <p class="contract-detail">${this.t("ui.announcementsDetail")}${multLabel}</p>
+        ${model.isHumanAnnouncementTurn() ? this.announcementControls(model) : ""}
+      `;
+      return;
+    }
+
     const called = game.calledKing
       ? ` ${this.t("ui.calledKing")}: ${cardLabel(game.calledKing, this.t)}${game.calledKingInTalon ? ` (${this.t("ui.inTalon")})` : ""}.`
       : "";
-    const partner = game.partner !== null
+    const partner = game.partnerKnownPublicly === true && game.partner !== null
       ? ` ${this.t("ui.partner")}: ${this.playerName(model.players[game.partner])}.`
       : game.contract.solo || game.playerCount === 3
         ? ` ${this.t("ui.solo")}.`
@@ -260,11 +284,10 @@ export class TarokView {
     this.els.talon.innerHTML = `
       <div class="contract-title">
         <span>Talon</span>
-        <span>${this.t("ui.talonTaken", { count: talonTaken.length })} / ${this.t("ui.rejected", { count: game.talonRejected.length })}</span>
+        <span>${this.t("ui.talonTaken", { count: talonTaken.length })} · ${this.t("ui.rejected", { count: game.talonRejected.length })}</span>
       </div>
       <p class="contract-detail">${this.t("ui.talonHelp")}</p>
       <div class="talon-cards">
-        ${talonTaken.map((card) => this.cardHtml(card, "small", "", "talon", false)).join("")}
         ${game.talonRejected.map((card) => (game.handDone ? this.cardHtml(card, "small", "", "talon", false) : this.cardBackHtml("small", card.id, "talon", false))).join("")}
       </div>
     `;
@@ -319,7 +342,9 @@ export class TarokView {
         ? this.t("ui.actionYourTalon")
         : this.t("ui.actionTalon", { player: this.playerName(model.players[game.activePlayer]) });
     } else if (game.phase === "announcements") {
-      text = this.t("ui.actionAnnouncements");
+      text = model.isHumanAnnouncementTurn()
+        ? this.t("ui.actionYourAnnouncements")
+        : this.t("ui.actionAnnouncements", { player: this.playerName(model.players[game.activePlayer]) });
     } else if (game.phase === "trickComplete") {
       text = this.t("ui.actionTrickComplete");
     } else if (model.isHumanTurn()) {
@@ -426,6 +451,34 @@ export class TarokView {
     });
   }
 
+  announcementControls(model) {
+    const actions = model.legalAnnouncementActions();
+    return `
+      <div class="bid-controls announcement-controls">
+        ${actions.map((a) => {
+          if (a.type === "pass") {
+            return `<button type="button" class="bid-button pass" data-announce="pass">${this.t("ui.announcePass")}</button>`;
+          }
+          if (a.type === "gameDouble") {
+            return `<button type="button" class="bid-button" data-announce="gameDouble">${this.t(`announce.step.${a.step}`)}</button>`;
+          }
+          return `<button type="button" class="bid-button" data-announce="bonus" data-bonus="${a.bonus}">${this.t(`announce.bonus.${a.bonus}`)}</button>`;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  bindAnnouncementButtons() {
+    this.els.contract.querySelectorAll("[data-announce]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const kind = button.dataset.announce;
+        if (kind === "pass") this.onAnnouncementAction({ type: "pass" });
+        else if (kind === "gameDouble") this.onAnnouncementAction({ type: "gameDouble" });
+        else if (kind === "bonus") this.onAnnouncementAction({ type: "announce", bonus: button.dataset.bonus });
+      });
+    });
+  }
+
   animateLatestMove(model) {
     const animation = model.game.animation;
     if (!animation || animation.id === this.lastAnimationId) return;
@@ -479,15 +532,11 @@ export class TarokView {
       });
     }
     if (item.key === "log.callKing") {
-      const partner = vars.inTalon
-        ? ` ${this.t("ui.inTalon")}`
-        : vars.partnerId !== null && vars.partnerId !== undefined
-          ? ` ${this.t("ui.partner")}: ${this.playerName(this.model.players[vars.partnerId])}.`
-          : "";
+      const tail = vars.inTalon ? ` (${this.t("ui.inTalon")}).` : ".";
       return this.t(item.key, {
         declarer: this.playerName(this.model.players[vars.declarerId]),
         card: cardLabel(vars.card, this.t),
-        partner
+        tail
       });
     }
     if (item.key === "log.callKingSkipped") {
@@ -498,13 +547,40 @@ export class TarokView {
     if (item.key === "log.talonExchange") {
       return this.t(item.key, {
         declarer: this.playerName(this.model.players[vars.declarerId]),
-        takenCount: vars.takenCount,
-        discardCount: vars.discardCount,
-        rejectedCount: vars.rejectedCount
+        talon: formatCardList(vars.talonBefore, this.t),
+        taken: formatCardList(vars.taken, this.t),
+        discards: formatCardList(vars.discards, this.t),
+        rejected: formatCardList(vars.rejected, this.t)
       });
     }
     if (item.key === "log.talonNoExchange") {
       return this.t(item.key, { count: vars.count });
+    }
+    if (item.key === "log.announcementPass") {
+      if (vars.playerId === this.model.humanId) {
+        return this.t("log.announcementPassHuman");
+      }
+      return this.t(item.key, { player: this.playerName(this.model.players[vars.playerId]) });
+    }
+    if (item.key === "log.announcementGameDouble") {
+      const step = this.t(`announce.step.${vars.stepKey}`);
+      if (vars.playerId === this.model.humanId) {
+        return this.t("log.announcementGameDoubleHuman", { step });
+      }
+      return this.t(item.key, {
+        player: this.playerName(this.model.players[vars.playerId]),
+        step
+      });
+    }
+    if (item.key === "log.announcementBonus") {
+      const bonus = this.t(`announce.bonus.${vars.bonus}`);
+      if (vars.playerId === this.model.humanId) {
+        return this.t("log.announcementBonusHuman", { bonus });
+      }
+      return this.t(item.key, {
+        player: this.playerName(this.model.players[vars.playerId]),
+        bonus
+      });
     }
     if (item.key === "log.announcementsPassed" || item.key === "log.playStarts") {
       return this.t(item.key, { player: this.playerName(this.model.players[vars.playerId]) });
@@ -566,7 +642,12 @@ export class TarokView {
     if (player.id === model.game.dealer) return this.t("role.dealer");
     if (model.game.phase === "bidding" && player.id === model.game.activePlayer) return this.t("role.bidding");
     if (player.id === model.game.declarer) return this.t("role.declarer");
-    if (model.game.partner === player.id) return this.t("role.calledPartner");
+    if (model.game.partnerKnownPublicly === true && model.game.partner === player.id) {
+      return this.t("role.calledPartner");
+    }
+    if (model.game.partnerKnownPublicly !== true && model.game.partner === player.id) {
+      return this.t("role.defender");
+    }
     if (model.isDeclarerSide(player.id)) return this.t("role.declarerSide");
     return this.t("role.defender");
   }

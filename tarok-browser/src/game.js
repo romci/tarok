@@ -74,11 +74,13 @@ export class TarokGame {
       contract: null,
       declarer: null,
       partner: null,
+      partnerKnownPublicly: false,
       calledKing: null,
       calledKingInTalon: false,
       talonExchanged: false,
       talonExchange: null,
       announcementsDone: false,
+      announcementContext: null,
       currentTrick: [],
       lastTrick: null,
       trickNumber: 0,
@@ -150,7 +152,11 @@ export class TarokGame {
     }
 
     if (this.game.phase === "announcements") {
-      this.processAnnouncements();
+      if (this.isHumanAnnouncementTurn()) {
+        this.game.waitingForHuman = true;
+        return { advanced: false, waitingForHuman: true };
+      }
+      this.processAnnouncementTurn();
       return { advanced: true, action: "announcements" };
     }
 
@@ -206,6 +212,29 @@ export class TarokGame {
     this.enterNextPostBiddingPhase();
     this.updateHumanWait();
     return true;
+  }
+
+  /**
+   * @param {{ type: "pass" } | { type: "gameDouble" } | { type: "announce", bonus: string }} choice
+   */
+  commitHumanAnnouncement(choice) {
+    if (!this.isHumanAnnouncementTurn()) return false;
+    return this.applyAnnouncementChoice(this.humanId, choice);
+  }
+
+  legalAnnouncementActions() {
+    if (!this.isHumanAnnouncementTurn()) return [];
+    const id = this.humanId;
+    const out = [{ type: "pass", id: "pass" }];
+    if (this.canDoubleGame(id)) {
+      out.push({ type: "gameDouble", id: "gameDouble", step: this.nextGameDoubleStepKey() });
+    }
+    for (const bonus of ["valat", "trula", "kings", "pagatUltimo", "kingUltimo"]) {
+      if (this.canAnnounceBonus(id, bonus)) {
+        out.push({ type: "announce", bonus, id: `ann-${bonus}` });
+      }
+    }
+    return out;
   }
 
   chooseHumanTalonGroup(groupIndex) {
@@ -313,8 +342,18 @@ export class TarokGame {
     return this.isHumanTalonTurn() && this.game.talonExchange && this.game.talonExchange.selectedIndex !== null;
   }
 
+  isHumanAnnouncementTurn() {
+    return this.game
+      && this.game.phase === "announcements"
+      && this.game.activePlayer === this.humanId;
+  }
+
   isWaitingForHuman() {
-    return this.isHumanTurn() || this.isHumanBidTurn() || this.isHumanCallingTurn() || this.isHumanTalonTurn();
+    return this.isHumanTurn()
+      || this.isHumanBidTurn()
+      || this.isHumanCallingTurn()
+      || this.isHumanTalonTurn()
+      || this.isHumanAnnouncementTurn();
   }
 
   isDeclarerSide(playerId) {
@@ -478,11 +517,152 @@ export class TarokGame {
       return;
     }
     if (!this.game.announcementsDone) {
-      this.game.phase = "announcements";
-      this.game.activePlayer = this.game.declarer;
-      return;
+      if (this.needsAnnouncementsPhase()) {
+        this.game.phase = "announcements";
+        this.startAnnouncementsRound();
+        this.game.activePlayer = this.game.declarer;
+        return;
+      }
+      this.game.announcementsDone = true;
     }
     this.startPlay();
+  }
+
+  needsAnnouncementsPhase() {
+    const c = this.game.contract;
+    if (!c) return false;
+    if (c.id === "klop") return false;
+    if (c.mode === "beggar" || c.mode === "piccolo") return false;
+    return true;
+  }
+
+  startAnnouncementsRound() {
+    this.game.announcementContext = {
+      consecutivePasses: 0,
+      gameDoubles: 0,
+      valatAnnounced: false,
+      trulaAnnounced: false,
+      kingsAnnounced: false,
+      pagatUltimoAnnounced: false,
+      kingUltimoAnnounced: false
+    };
+  }
+
+  processAnnouncementTurn() {
+    const player = this.players[this.game.activePlayer];
+    const raw = this.controllers[player.id].chooseAnnouncement(this.game, player);
+    const choice = raw && raw.type ? raw : { type: "pass" };
+    this.applyAnnouncementChoice(player.id, choice);
+  }
+
+  /** Label for the next game-double action (before it is applied). */
+  nextGameDoubleStepKey() {
+    const keys = ["kontra", "rekontra", "subkontra", "mordkontra"];
+    const ctx = this.game.announcementContext;
+    const idx = ctx ? ctx.gameDoubles : 0;
+    return keys[Math.min(idx, keys.length - 1)];
+  }
+
+  canDoubleGame(playerId) {
+    const ctx = this.game.announcementContext;
+    if (!ctx || ctx.gameDoubles >= 4) return false;
+    const onDeclarerTeam = this.isDeclarerSide(playerId);
+    const needDefenderMove = ctx.gameDoubles % 2 === 0;
+    if (needDefenderMove && onDeclarerTeam) return false;
+    if (!needDefenderMove && !onDeclarerTeam) return false;
+    return true;
+  }
+
+  canAnnounceBonus(playerId, bonus) {
+    if (!this.isDeclarerSide(playerId)) return false;
+    const ctx = this.game.announcementContext;
+    const c = this.game.contract;
+    if (!ctx || !c || c.noBonuses) return false;
+    if (bonus === "valat" && (c.mode === "valat" || c.mode === "colourValat")) return false;
+    if (bonus === "kingUltimo" && (!this.game.calledKing || this.game.calledKingInTalon)) return false;
+    const flag = `${bonus}Announced`;
+    if (ctx[flag]) return false;
+    return ["valat", "trula", "kings", "pagatUltimo", "kingUltimo"].includes(bonus);
+  }
+
+  advanceAnnouncementTurn() {
+    this.game.activePlayer = this.nextActive(this.game.activePlayer);
+  }
+
+  finishAnnouncementsPhase() {
+    const ctx = this.game.announcementContext;
+    const had = ctx && (
+      ctx.gameDoubles > 0
+      || ctx.valatAnnounced
+      || ctx.trulaAnnounced
+      || ctx.kingsAnnounced
+      || ctx.pagatUltimoAnnounced
+      || ctx.kingUltimoAnnounced
+    );
+    if (!had) {
+      this.log("announcementsPassed", { playerId: this.game.declarer });
+    }
+    this.game.announcementsDone = true;
+    this.enterNextPostBiddingPhase();
+    this.updateHumanWait();
+  }
+
+  /**
+   * @param {{ type: "pass" } | { type: "gameDouble" } | { type: "announce", bonus: string }} choice
+   */
+  applyAnnouncementChoice(playerId, choice) {
+    if (this.game.phase !== "announcements" || playerId !== this.game.activePlayer) return false;
+    const ctx = this.game.announcementContext;
+    if (!ctx || !choice || !choice.type) return false;
+
+    if (choice.type === "pass") {
+      ctx.consecutivePasses += 1;
+      this.log("announcementPass", { playerId });
+      const passesNeeded = this.activePlayers().length;
+      if (ctx.consecutivePasses >= passesNeeded) {
+        this.finishAnnouncementsPhase();
+        return true;
+      }
+      this.advanceAnnouncementTurn();
+      this.updateHumanWait();
+      return true;
+    }
+
+    ctx.consecutivePasses = 0;
+
+    if (choice.type === "gameDouble") {
+      if (!this.canDoubleGame(playerId)) return false;
+      ctx.gameDoubles += 1;
+      const stepNames = ["kontra", "rekontra", "subkontra", "mordkontra"];
+      this.log("announcementGameDouble", {
+        playerId,
+        stepKey: stepNames[ctx.gameDoubles - 1]
+      });
+      this.advanceAnnouncementTurn();
+      this.updateHumanWait();
+      return true;
+    }
+
+    if (choice.type === "announce") {
+      if (!this.canAnnounceBonus(playerId, choice.bonus)) return false;
+      ctx[`${choice.bonus}Announced`] = true;
+      this.log("announcementBonus", { playerId, bonus: choice.bonus });
+      this.advanceAnnouncementTurn();
+      this.updateHumanWait();
+      return true;
+    }
+
+    return false;
+  }
+
+  scoreAnnouncedBonusAdjustments(declarerCards) {
+    const ctx = this.game.announcementContext;
+    if (!ctx || this.game.contract.noBonuses) return 0;
+    const has = bonusSet(declarerCards);
+    let d = 0;
+    if (ctx.trulaAnnounced && !has.trula) d -= 10;
+    if (ctx.kingsAnnounced && !has.kings) d -= 10;
+    return d;
   }
 
   needsTalonPhase() {
@@ -521,10 +701,10 @@ export class TarokGame {
     const holder = this.activePlayers().find((player) => player.hand.some((card) => card.id === this.game.calledKing.id));
     this.game.partner = holder ? holder.id : null;
     this.game.calledKingInTalon = !holder && this.game.talon.some((card) => card.id === this.game.calledKing.id);
+    this.game.partnerKnownPublicly = false;
     this.log("callKing", {
       declarerId: this.game.declarer,
       card: this.game.calledKing,
-      partnerId: this.game.partner,
       inTalon: this.game.calledKingInTalon
     });
   }
@@ -593,27 +773,25 @@ export class TarokGame {
 
   finalizeTalonExchange(taken, rejected, discards) {
     const declarer = this.players[this.game.declarer];
+    const talonBefore = [...this.game.talon];
     discards.forEach((discard) => removeCard(declarer.hand, discard.id));
     declarer.taken.push(...discards);
     this.game.talon = [];
     this.game.talonTaken = taken;
     this.game.talonRejected = rejected;
-    if (rejected.some((card) => card.id === "T22") && this.isCapturedMondTalonPenaltyContract()) {
+    if (rejected.some((card) => card.id === "T21") && this.isCapturedMondTalonPenaltyContract()) {
       this.game.capturedMondPenalty.push(this.game.declarer);
     }
     this.log("talonExchange", {
       declarerId: this.game.declarer,
       takenCount: taken.length,
       rejectedCount: rejected.length,
-      discardCount: discards.length
+      discardCount: discards.length,
+      talonBefore,
+      taken,
+      rejected,
+      discards
     });
-  }
-
-  processAnnouncements() {
-    this.game.announcementsDone = true;
-    this.log("announcementsPassed", { playerId: this.game.declarer });
-    this.enterNextPostBiddingPhase();
-    this.updateHumanWait();
   }
 
   startPlay() {
@@ -644,6 +822,12 @@ export class TarokGame {
 
     removeCard(player.hand, card.id);
     this.game.currentTrick.push({ playerId, card });
+    if (this.game.calledKing && card.id === this.game.calledKing.id) {
+      this.game.partnerKnownPublicly = true;
+      if (this.game.partner === null && playerId !== this.game.declarer) {
+        this.game.partner = playerId;
+      }
+    }
     this.game.animation = {
       type: "play",
       id: `play-${this.game.handNumber}-${this.game.trickNumber}-${playerId}-${card.id}-${Date.now()}`,
@@ -672,7 +856,7 @@ export class TarokGame {
     winner.taken.push(...cards);
     winner.tricks += 1;
 
-    const mondPlay = this.game.currentTrick.find((play) => play.card.id === "T22");
+    const mondPlay = this.game.currentTrick.find((play) => play.card.id === "T21");
     const skisPlay = this.game.currentTrick.find((play) => play.card.id === "SKIS");
     if (mondPlay && skisPlay && this.game.contract.mode === "positive") {
       this.game.capturedMondPenalty.push(mondPlay.playerId);
@@ -747,7 +931,8 @@ export class TarokGame {
       this.game.summary = { key: "log.piccoloSummary", vars: { declarerId: this.game.declarer, result: declarerSuccess ? "made" : "failed", delta } };
     } else if (this.game.contract.mode === "valat" || this.game.contract.mode === "colourValat") {
       declarerSuccess = allTricks === this.maxTricks();
-      const delta = declarerSuccess ? this.game.contract.base : -this.game.contract.base;
+      const mult = 2 ** (this.game.announcementContext?.gameDoubles || 0);
+      const delta = (declarerSuccess ? this.game.contract.base : -this.game.contract.base) * mult;
       deltas[this.game.declarer] += delta;
       this.game.summary = { key: "log.valatContractSummary", vars: { declarerId: this.game.declarer, result: declarerSuccess ? "made" : "failed", delta } };
       radliTrigger = true;
@@ -755,6 +940,7 @@ export class TarokGame {
       declarerSuccess = declarerPoints >= 36;
       const rawDifference = Math.abs(declarerPoints - 35);
       const difference = this.playerCount === 3 ? rawDifference : round5(rawDifference);
+      const mult = 2 ** (this.game.announcementContext?.gameDoubles || 0);
       let gameValue = this.game.contract.base + (!this.game.contract.noDifference && NORMAL_CONTRACT_IDS.has(this.game.contract.id) ? difference : 0);
       if (allTricks === this.maxTricks()) {
         gameValue = 250;
@@ -766,10 +952,17 @@ export class TarokGame {
           vars: { declarerId: this.game.declarer, declarerPoints: formatPoints(declarerPoints), defenderPoints: formatPoints(defenderPoints) }
         };
       }
+      gameValue *= mult;
       this.applyTeamDelta(deltas, declarerSide, declarerSuccess ? gameValue : -gameValue);
 
+      if (this.game.announcementContext?.valatAnnounced && allTricks !== this.maxTricks()) {
+        this.applyTeamDelta(deltas, declarerSide, -250);
+      }
+
       if (!this.game.contract.noBonuses && allTricks !== this.maxTricks()) {
-        this.applyTeamDelta(deltas, declarerSide, this.scoreBonuses(declarerCards, defenderCards));
+        const bonusTotal = this.scoreBonuses(declarerCards, defenderCards)
+          + this.scoreAnnouncedBonusAdjustments(declarerCards);
+        this.applyTeamDelta(deltas, declarerSide, bonusTotal);
       }
     }
 

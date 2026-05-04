@@ -3,7 +3,7 @@ export const CARD_SPRITE_ROWS = 6;
 
 export const CARD_IDS = [
   ...Array.from({ length: 20 }, (_, index) => `T${index + 1}`),
-  "T22",
+  "T21",
   "SKIS",
   ...["C", "S"].flatMap((suit) => ["K", "Q", "N", "J", "10", "9", "8", "7"].map((rank) => `${suit}${rank}`)),
   ...["H", "D"].flatMap((suit) => ["K", "Q", "N", "J", "4", "3", "2", "1"].map((rank) => `${suit}${rank}`))
