@@ -14,6 +14,8 @@ export function kingCallScore(king, hand, features, level = "medium") {
   const held = hand.some((card) => card.id === king.id);
   const length = suitLength(hand, king.suit);
   const middleCards = hand.filter((card) => card.suit === king.suit && card.value >= 2 && card.value < 5).length;
+  // Prefer short called suits: they increase future trumping leverage and keep partner
+  // identity less obvious early.
   const shortSuitBonus = length === 0 ? 3.2 : length === 1 ? 2.4 : length === 2 ? 1.1 : -1.1 * (length - 2);
   const abilityToTrumpSuitLater = features.tarokCount * 0.18 + features.lowTarokCount * 0.05 + features.highTarokCount * 0.25;
   const hidePartnerPotential = held ? -4 : length <= 1 ? 1.4 : 0.4;

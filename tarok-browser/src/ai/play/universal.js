@@ -14,6 +14,7 @@ export function chooseCard(tarokGame, player, legalCards, level = "medium") {
   const contract = tarokGame.game.contract;
   const inference = level === "easy" ? null : buildInference(tarokGame, player.id);
 
+  // Dispatch by contract family so each strategy module can stay single-purpose.
   if (contract.id === "klop") return playKlop(tarokGame, player, legalCards, level);
   if (contract.mode === "beggar") return playBeggarLike(tarokGame, player, legalCards, level, inference);
   if (contract.mode === "piccolo") return playPiccolo(tarokGame, player, legalCards, level, inference);
@@ -24,6 +25,7 @@ export function chooseCard(tarokGame, player, legalCards, level = "medium") {
 
 function chooseEasyCard(tarokGame, legalCards) {
   const trick = tarokGame.game.currentTrick;
+  // Easy AI intentionally injects noise so it feels beatable and less deterministic.
   if (Math.random() < 0.28) return randomChoice(legalCards);
   if (!trick.length) return [...legalCards].sort((a, b) => cardPower(a) - cardPower(b))[0];
   const winners = winningCards(legalCards, trick, tarokGame.game.contract);

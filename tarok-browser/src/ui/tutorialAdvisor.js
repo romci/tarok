@@ -9,6 +9,7 @@ const hardAdvisor = new LocalAIController(0, "hard");
 export function buildTutorialSuggestion(model, t) {
   const human = model.players[model.humanId];
   if (!human?.active || model.game.handDone) return null;
+  // Reuse the same phase split as gameplay so advice stays aligned with legal actions.
   if (model.isHumanBidTurn()) return bidSuggestion(model, human, t);
   if (model.isHumanCallingTurn()) return kingSuggestion(model, human, t);
   if (model.isHumanTalonGroupTurn()) return talonGroupSuggestion(model, human, t);
@@ -75,6 +76,7 @@ function talonGroupSuggestion(model, human, t) {
   if (!exchange?.groups?.length) return null;
   const index = hardAdvisor.chooseTalonGroup(model.game, human, exchange.groups);
   const group = exchange.groups[index] || exchange.groups[0];
+  // Show strength delta before/after to explain the strategic tradeoff, not just the pick.
   const before = evaluateHand(human.hand, { contract: model.game.contract });
   const after = evaluateHand([...human.hand, ...group], { contract: model.game.contract });
   return {
@@ -165,6 +167,8 @@ function cardSuggestion(model, human, t) {
 }
 
 function legalAnnouncementChoice(choice, legal) {
+  // Advisor output is normalized through legal actions so stale heuristics never suggest
+  // impossible UI choices.
   if (!choice || !choice.type) return { type: "pass" };
   if (choice.type === "pass") return choice;
   if (choice.type === "gameDouble" && legal.some((action) => action.type === "gameDouble")) return choice;

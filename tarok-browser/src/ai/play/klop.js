@@ -4,6 +4,7 @@ import { cardRisk, losingCards, lowestBy, orderedLowToHigh, trickPoints, winning
 export function playKlop(tarokGame, player, legalCards, level = "medium") {
   const trick = tarokGame.game.currentTrick;
   const contract = tarokGame.game.contract;
+  // In klop, avoiding trick captures usually dominates card-preservation concerns.
   const losing = losingCards(legalCards, trick, contract);
   if (losing.length) {
     return lowestBy(losing, (card) => klopLoseScore(card, tarokGame, level));
@@ -16,6 +17,7 @@ export function playKlop(tarokGame, player, legalCards, level = "medium") {
 }
 
 function klopLoseScore(card, tarokGame, level) {
+  // Early tricks are weighted higher because klop talon gifts can snowball quickly.
   const early = tarokGame.game.trickNumber < 6 ? card.value * 1.8 : card.value;
   const hardExitValue = level === "hard" ? cardRisk(card) * 0.15 : 0;
   return early + hardExitValue;

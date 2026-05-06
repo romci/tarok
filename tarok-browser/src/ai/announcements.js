@@ -6,6 +6,8 @@ export function chooseAnnouncement(game, player, level = "medium") {
   const contract = game.contract;
   if (!ctx || !contract || contract.noBonuses) return { type: "pass" };
 
+  // Announcements are side-scoped: defenders only escalate doubles, declarer side
+  // can also claim bonuses.
   const declarerSide = player.id === game.declarer || player.id === game.partner;
   const features = evaluateHand(player.hand, { contract });
 
@@ -24,6 +26,7 @@ export function chooseAnnouncement(game, player, level = "medium") {
 
 function canDoubleNow(ctx, declarerSide) {
   if (ctx.gameDoubles >= 4) return false;
+  // Alternating sides prevents infinite same-side re-raising.
   const defenderMove = ctx.gameDoubles % 2 === 0;
   return defenderMove ? !declarerSide : declarerSide;
 }

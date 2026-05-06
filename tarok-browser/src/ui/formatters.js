@@ -18,6 +18,7 @@ export function contractNameById(contractId, t) {
 }
 
 export function phaseName(phase, t) {
+  // Centralizing phase labels avoids UI drift between controls and status panes.
   const names = {
     calling: t("ui.phaseCalling"),
     talon: t("ui.phaseTalon"),
@@ -46,6 +47,7 @@ export function roleFor(model, player, t) {
   if (model.game.partnerKnownPublicly === true && model.game.partner === player.id) {
     return t("role.calledPartner");
   }
+  // Until partner is publicly revealed we intentionally keep the UI neutral.
   if (model.game.partnerKnownPublicly !== true && model.game.partner === player.id) {
     return t("role.defender");
   }
@@ -72,6 +74,8 @@ export function isHiddenTalonContract(game) {
 }
 
 export function formatLog(item, model, t) {
+  // Log formatting is key-driven so translations can evolve without changing
+  // score/bidding payload structures.
   const vars = item.vars || {};
   if (item.key === "log.deal") {
     return t(item.key, {

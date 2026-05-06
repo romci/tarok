@@ -13,6 +13,7 @@ function playNegativeDeclarer(tarokGame, player, legalCards, level) {
   const trick = tarokGame.game.currentTrick;
   const contract = tarokGame.game.contract;
   const losing = losingCards(legalCards, trick, contract);
+  // Declarer in negative contracts optimizes for "avoid taking at all costs".
   const candidates = losing.length ? losing : legalCards;
   return lowestBy(candidates, (card) => {
     const wouldTake = !losing.length || winningCards([card], trick, contract).length > 0;
@@ -40,6 +41,7 @@ function playNegativeDefense(tarokGame, player, legalCards, level) {
   }
   const losing = losingCards(legalCards, trick, contract);
   const winners = winningCards(legalCards, trick, contract);
+  // Defenders switch to immediate stopper mode once declarer is in the trick.
   if (tarokGame.game.currentTrick.some((play) => play.playerId === tarokGame.game.declarer)) {
     return winners.length
       ? lowestBy(winners, (card) => cardPower(card) + card.value * 4)

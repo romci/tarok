@@ -7,6 +7,7 @@ export function playColourValat(tarokGame, player, legalCards, level = "medium",
   const contract = tarokGame.game.contract;
   if (isDeclarer) {
     if (!trick.length) {
+      // In colour valat, opening with guaranteed winners reduces accidental one-trick leaks.
       const guaranteed = level === "hard" && inference
         ? legalCards.filter((card) => cardIsGuaranteedWinnerInLedSuit(card, inference, contract))
         : [];

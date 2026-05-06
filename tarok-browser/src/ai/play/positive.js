@@ -18,6 +18,7 @@ export function playPositive(tarokGame, player, legalCards, level = "medium", in
   const ownSideWinning = trick.length
     ? sameKnownSide(tarokGame, player.id, currentWinner, player, declarerSide, inference)
     : false;
+  // Contest decisions are contextual: point load, side pressure, and trump reserve.
   const shouldWin = shouldContestTrick({
     tarokGame,
     declarerSide,
@@ -160,6 +161,7 @@ function highTrumpReservePenalty(card, tarokGame, inference, context = {}) {
   const pointPressure = Math.max(0, Number(context.currentPoints || 0) - 6);
   const pressureDiscount = pointPressure * 1.8 + (late ? 10 : 0) + (context.lastToPlay ? 3 : 0);
   const defenderMultiplier = context.declarerSide ? 0.45 : 1;
+  // Reserve premium keeps SKIS/Mond available for late high-leverage tricks.
   let reserve = 0;
   if (card.id === "SKIS") reserve = 34;
   else if (card.id === "T21") reserve = 28 + (inference ? remainingHigherTaroks(card, inference) * 2.5 : 0);

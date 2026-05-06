@@ -1,8 +1,11 @@
+// Keep language metadata separate from dictionaries so UI selectors can stay stable
+// even if translation bundles are refactored later.
 export const LANGUAGES = {
   en: "English",
   sl: "Slovenščina"
 };
 
+// Flat dotted keys avoid deep-merge edge cases and make fallback lookup deterministic.
 const STRINGS = {
   en: {
     "ui.title": "Tarok Table",
@@ -394,16 +397,20 @@ const STRINGS = {
 
 export class I18n {
   constructor(language = "en") {
+    // Default to English to guarantee a complete UI even when a locale is partial.
     this.language = STRINGS[language] ? language : "en";
   }
 
   setLanguage(language) {
     this.language = STRINGS[language] ? language : "en";
+    // Update the root lang attribute so accessibility tools use the right voice/profile.
     document.documentElement.lang = this.language;
   }
 
   t(key, vars = {}) {
     const dictionary = STRINGS[this.language] || STRINGS.en;
+    // Always resolve through English before returning the raw key so missing strings
+    // degrade gracefully for players instead of exposing placeholders.
     const fallback = STRINGS.en[key] || key;
     const template = dictionary[key] || fallback;
     return template.replace(/\{(\w+)\}/g, (_, name) => {

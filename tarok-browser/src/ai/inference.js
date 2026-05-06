@@ -5,6 +5,8 @@ export function buildInference(tarokGame, playerId) {
   const self = tarokGame.players[playerId];
   const visible = visibleCards(tarokGame, playerId);
   const visibleIds = new Set(visible.map((card) => card.id));
+  // Unknown cards are derived by subtraction from a canonical deck to avoid drift
+  // from incremental bookkeeping mistakes.
   const unknownCards = createDeck().filter((card) => !visibleIds.has(card.id));
   const voids = inferVoids(tarokGame);
   const trumpVoids = inferTrumpVoids(tarokGame);
@@ -67,6 +69,7 @@ function inferVoids(tarokGame) {
     const ledSuit = isTarok(led) ? "tarok" : led.suit;
     for (const play of trick.slice(1)) {
       const followed = ledSuit === "tarok" ? isTarok(play.card) : play.card.suit === ledSuit;
+      // Missing the led suit is strong public evidence for a void at that moment.
       if (!followed) {
         if (!voids.has(play.playerId)) voids.set(play.playerId, new Set());
         voids.get(play.playerId).add(ledSuit);

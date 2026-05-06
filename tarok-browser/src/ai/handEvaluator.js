@@ -2,6 +2,8 @@ import { SUITS, cardPower, isTarok, isTrula } from "../rules.js";
 import { clamp, sum } from "./utils.js";
 
 export const HAND_EVALUATOR_WEIGHTS = {
+  // Shared feature weights keep bidding/announcements/play aligned around one
+  // interpretation of hand quality.
   positive: {
     tarokCount: 2.0,
     highTarokCount: 3.0,
@@ -92,6 +94,8 @@ export function evaluateHand(hand, options = {}) {
   const kingUltimoPotential = clamp(kings.length * 0.85 + voidSuits * 0.6 + taroks.length * 0.18, 0, 8);
   const relianceOnPartner = options.contract?.solo ? 0 : clamp(3.5 - highTarokCount - taroks.length / 5, 0, 3.5);
 
+  // Build a normalized feature vector first so callers can reuse both raw signals
+  // and aggregated strengths.
   const features = {
     tarokCount: taroks.length,
     highTarokCount,

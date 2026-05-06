@@ -9,6 +9,7 @@ export function chooseTalonGroup(game, player, groups, level = "medium") {
     return bestRawPointGroup(groups);
   }
 
+  // Evaluate each talon group by downstream hand quality after optimal legal discards.
   const scored = groups.map((group, index) => {
     const candidateHand = [...player.hand, ...group];
     sortHand(candidateHand);
@@ -34,6 +35,7 @@ export function findBestLegalDiscard(hand, count, contract, level = "medium") {
   if (count <= 0) return [];
   if (candidates.length <= count) return candidates.slice(0, count);
 
+  // Keep combinatorics bounded so AI remains responsive in browser play.
   const comboLimit = level === "hard" ? 5000 : 1500;
   return combinations(candidates, count, comboLimit)
     .map((discards) => ({

@@ -16,6 +16,7 @@ export function cardSpriteVars(cardId) {
   if (index === undefined) return {};
   const column = index % CARD_SPRITE_COLUMNS;
   const row = Math.floor(index / CARD_SPRITE_COLUMNS);
+  // Percent positioning keeps sprite mapping resolution-independent across card sizes.
   const x = column * (100 / (CARD_SPRITE_COLUMNS - 1));
   const y = row * (100 / (CARD_SPRITE_ROWS - 1));
   return { "--sprite-x": `${x}%`, "--sprite-y": `${y}%` };

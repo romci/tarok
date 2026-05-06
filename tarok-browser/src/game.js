@@ -39,6 +39,7 @@ export class TarokGame {
   startSession({ playerCount = this.playerCount, aiLevel = this.aiLevel } = {}) {
     this.playerCount = Number(playerCount);
     this.aiLevel = aiLevel;
+    // Keep a fixed 4-seat model even in 3-player mode so UI/state indexing stays stable.
     this.players = PLAYER_NAME_KEYS.map((nameKey, index) => ({
       id: index,
       nameKey,
@@ -129,6 +130,8 @@ export class TarokGame {
       return { advanced: true };
     }
 
+    // The phase dispatcher centralizes turn progression so auto-play and step mode
+    // share exactly the same state transitions.
     if (this.game.phase === "bidding") {
       if (this.isHumanBidTurn()) {
         this.game.waitingForHuman = true;
@@ -306,6 +309,7 @@ export class TarokGame {
     if (this.playerCount === 3) {
       return CONTRACT_SEQUENCE.filter((contract) => contract.id !== "klop" && contract.id !== "three" && contract.rank > currentRank);
     }
+    // Equal-rank rebids are only legal when the caller has forehand priority.
     const higherPriority = bidding.highestBidder !== null && this.hasHigherBidPriority(this.game.activePlayer, bidding.highestBidder);
     const minimumRank = higherPriority ? currentRank : currentRank + 1;
     return CONTRACT_SEQUENCE.filter((contract) => {
@@ -510,6 +514,7 @@ export class TarokGame {
   }
 
   enterNextPostBiddingPhase() {
+    // Keep post-bid flow deterministic: calling -> talon -> announcements -> play.
     if (this.game.contract.callsKing && this.playerCount === 4 && !this.game.calledKing) {
       this.game.phase = "calling";
       this.game.activePlayer = this.game.declarer;
@@ -572,6 +577,7 @@ export class TarokGame {
     const ctx = this.game.announcementContext;
     if (!ctx || ctx.gameDoubles >= 4) return false;
     const onDeclarerTeam = this.isDeclarerSide(playerId);
+    // Doubles alternate by side so kontra escalation cannot be stacked by one team.
     const needDefenderMove = ctx.gameDoubles % 2 === 0;
     if (needDefenderMove && onDeclarerTeam) return false;
     if (!needDefenderMove && !onDeclarerTeam) return false;
@@ -787,6 +793,7 @@ export class TarokGame {
     this.game.talonTaken = taken;
     this.game.talonRejected = rejected;
     this.game.talonDiscards = discards;
+    // Rejected Mond can trigger a penalty in contracts where talon outcomes affect score.
     if (rejected.some((card) => card.id === "T21") && this.isCapturedMondTalonPenaltyContract()) {
       this.game.capturedMondPenalty.push(this.game.declarer);
     }
@@ -926,6 +933,7 @@ export class TarokGame {
     let declarerSuccess = false;
     let radliTrigger = false;
 
+    // Branch by contract mode first to keep each scoring family isolated and auditable.
     if (this.game.contract.id === "klop") {
       this.scoreKlop(deltas);
       this.game.summary = { key: "log.klopSummary" };
@@ -943,6 +951,7 @@ export class TarokGame {
       this.game.summary = { key: "log.piccoloSummary", vars: { declarerId: this.game.declarer, result: declarerSuccess ? "made" : "failed", delta } };
     } else if (this.game.contract.mode === "valat" || this.game.contract.mode === "colourValat") {
       declarerSuccess = allTricks === this.maxTricks();
+      // Kontra chain scales exponentially by tradition.
       const mult = 2 ** (this.game.announcementContext?.gameDoubles || 0);
       const delta = (declarerSuccess ? this.game.contract.base : -this.game.contract.base) * mult;
       deltas[this.game.declarer] += delta;

@@ -3,6 +3,8 @@ import { evaluateHand } from "./handEvaluator.js";
 import { clamp, randomChoice, shuffle } from "./utils.js";
 
 const GATES = {
+  // Gates encode minimum hand profiles that keep contracts strategically sane
+  // before we compare fine-grained EV.
   three: { positive: 18, taroks: 5, highTaroks: 0 },
   two: { positive: 23, taroks: 6, highTaroks: 1 },
   one: { positive: 29, taroks: 7, highTaroks: 2 },
@@ -31,6 +33,7 @@ export function chooseBestBid(game, player, level = "medium") {
   }
 
   const features = evaluateHand(player.hand);
+  // Two-stage filter: hard constraints first, expected-value ranking second.
   const scored = legal
     .filter((contract) => contract.id !== "klop")
     .map((contract) => ({
@@ -96,6 +99,7 @@ function chooseForehandContract(game, player, level, legal) {
 function estimateWinProbability(contract, features, gateScore, level) {
   const scale = level === "hard" ? 7 : level === "medium" ? 9 : 12;
   const base = sigmoid(gateScore / scale);
+  // Clamp tails to avoid overconfident outputs from noisy heuristic inputs.
   if (contract.id === "valatWithout" || contract.id === "colourValatWithout") {
     return clamp(base * 0.72 + guaranteedWinnerPressure(features) * 0.12, 0.02, 0.94);
   }
@@ -118,6 +122,7 @@ function estimateBonusEV(contract, features, level) {
 function estimateRiskPenalty(contract, features, level) {
   const riskBias = level === "easy" ? 0.65 : level === "medium" ? 1 : 1.25;
   let risk = contract.base / 18;
+  // Solo contracts are punished for weak trump control because partner bailout is impossible.
   if (contract.solo) risk += Math.max(0, 4 - features.highTarokCount) * 1.4;
   if (contract.mode === "beggar") risk += features.unavoidableWinnerEstimate * 5;
   if (contract.mode === "valat" || contract.mode === "colourValat") risk += 10 - guaranteedWinnerPressure(features);
@@ -127,6 +132,7 @@ function estimateRiskPenalty(contract, features, level) {
 }
 
 function passesContractGate(contract, features, playerCount, level) {
+  // Difficulty changes prudence rather than replacing the model with different logic.
   const loosen = level === "easy" ? 5 : level === "hard" ? -1 : 0;
   const gate = GATES[contract.id];
   if (!gate) return false;

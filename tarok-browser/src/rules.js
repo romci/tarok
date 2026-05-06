@@ -6,6 +6,7 @@ export const SUITS = [
 ];
 
 export const CONTRACTS = {
+  // Rank drives bidding priority and escalation order, not payout size.
   klop: { id: "klop", nameKey: "contract.klop", base: 0, talonTake: 0, mode: "negative", rank: 0 },
   three: { id: "three", nameKey: "contract.three", base: 10, talonTake: 3, mode: "positive", rank: 1, callsKing: true },
   two: { id: "two", nameKey: "contract.two", base: 20, talonTake: 2, mode: "positive", rank: 2, callsKing: true },
@@ -83,6 +84,8 @@ export function legalCards(hand, trick, contract) {
   if (!trick.length) return [...hand];
   const led = trick[0].card;
   const ledSuit = isTarok(led) ? "tarok" : led.suit;
+  // Enforce classic follow-suit/trump obligations first; variant-specific restrictions
+  // are applied afterwards in negativeLegalSubset.
   const follow = hand.filter((card) => (ledSuit === "tarok" ? isTarok(card) : card.suit === ledSuit));
   if (follow.length) return negativeLegalSubset(follow, trick, contract);
   const taroks = hand.filter(isTarok);
@@ -93,6 +96,7 @@ export function legalCards(hand, trick, contract) {
 export function trickWinner(trick) {
   const contract = trick.contract;
   const tarokIds = new Set(trick.filter((play) => isTarok(play.card)).map((play) => play.card.id));
+  // Trula is a historical exception: when all three appear, Pagat wins that exchange.
   if (tarokIds.has("T1") && tarokIds.has("T21") && tarokIds.has("SKIS")) {
     if (contract && contract.mode === "colourValat" && !isTarok(trick[0].card)) return trick[0].playerId;
     return trick.find((play) => play.card.id === "T1").playerId;
@@ -115,6 +119,7 @@ export function wouldWin(card, trick, contract = null) {
 
 export function countTarokPoints(cards) {
   const total = cards.reduce((sum, card) => sum + card.value, 0);
+  // Tarok scoring counts in 3-card packets; this adjustment mirrors table scoring math.
   const groups = Math.floor(cards.length / 3);
   const remainder = cards.length % 3;
   return total - groups * 2 - (remainder ? 1 : 0);
@@ -200,6 +205,8 @@ export function bonusSet(cards) {
 function negativeLegalSubset(cards, trick, contract) {
   if (!["klop", "beggar", "openBeggar", "piccolo"].includes(contract.id)) return cards;
   const winning = cards.filter((card) => wouldWin(card, trick, contract));
+  // In negative contracts players must win if possible, then avoid burning Pagat unless
+  // it is the only legal winning option.
   let restricted = winning.length ? winning : cards;
   if (restricted.some((card) => card.id !== "T1")) {
     const pagatOnlyWins = cards.filter((card) => card.id === "T1" && wouldWin(card, trick, contract));

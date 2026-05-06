@@ -41,6 +41,8 @@ export class SeatController {
 export class HumanController extends SeatController {
   constructor(playerId) {
     super(playerId);
+    // Human seats still reuse AI heuristics for hints/auto-resolve flows so UX remains
+    // responsive in phases where manual interaction is optional.
     this.assistant = new LocalAIController(playerId, "medium");
   }
 
@@ -61,6 +63,7 @@ export class HumanController extends SeatController {
   }
 
   chooseCard() {
+    // Returning null is intentional: the game loop uses this to pause on human turns.
     return null;
   }
 
@@ -107,6 +110,7 @@ export class NetworkSeatController extends SeatController {
   }
 
   chooseCard() {
+    // Fail loudly until multiplayer transport exists so integration gaps are visible.
     throw new Error("Network seat transport is not connected yet.");
   }
 }

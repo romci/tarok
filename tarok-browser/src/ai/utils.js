@@ -26,6 +26,7 @@ export function shuffle(items) {
 }
 
 export function lowestBy(items, score) {
+  // Copy-before-sort avoids hidden mutations in callers that reuse original arrays.
   return [...items].sort((a, b) => score(a) - score(b))[0];
 }
 
@@ -68,6 +69,7 @@ export function isUltimoCard(card, game) {
 }
 
 export function cardRisk(card) {
+  // Risk intentionally overweights point cards so dump logic protects scoring equity.
   if (isTarok(card)) return 6 + card.tarok / 4;
   return card.value * 4 + card.suitStrength;
 }
@@ -76,6 +78,7 @@ export function combinations(items, count, limit = 3000) {
   const out = [];
   const buffer = [];
 
+  // Hard cap protects against exponential blowups in discard search.
   function visit(start) {
     if (out.length >= limit) return;
     if (buffer.length === count) {

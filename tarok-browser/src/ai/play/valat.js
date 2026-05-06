@@ -7,6 +7,7 @@ export function playValat(tarokGame, player, legalCards, level = "medium", infer
   const contract = tarokGame.game.contract;
   if (isDeclarer) {
     if (!trick.length) {
+      // Hard mode only leads cards that are currently provable winners when possible.
       const guaranteed = level === "hard" && inference
         ? legalCards.filter((card) => cardGuaranteedValatLead(card, inference))
         : [];
