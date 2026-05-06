@@ -191,6 +191,8 @@ const STRINGS = {
     "log.pointsSummary": "{declarer}'s side takes {declarerPoints} to defenders' {defenderPoints}.",
     "log.valatSummary": "Valat: declarer side wins every trick.",
     "log.scoreChange": "Score change: {entries}.",
+    "log.handScoreDetails": "Hand {hand} final scoring ({contract}): {details}.",
+    "log.handScoreDetailsEntry": "{player} Δ{delta}, total {total}, tricks {tricks}, points {points} (round {roundedPoints}), radli {radli}",
     "log.radliAwarded": "Radlci added for this hand.",
     "made": "makes",
     "failed": "fails"
@@ -382,6 +384,8 @@ const STRINGS = {
     "log.pointsSummary": "Stran izvajalca ({declarer}) ima {declarerPoints}, branilci {defenderPoints}.",
     "log.valatSummary": "Valat: stran izvajalca pobere vse vzetke.",
     "log.scoreChange": "Sprememba rezultata: {entries}.",
+    "log.handScoreDetails": "Igra {hand} podrobno točkovanje ({contract}): {details}.",
+    "log.handScoreDetailsEntry": "{player} Δ{delta}, skupaj {total}, vzetki {tricks}, točke {points} (zaokroženo {roundedPoints}), radlci {radli}",
     "log.radliAwarded": "Radlci so dodani za to igro.",
     "made": "uspešno odigra",
     "failed": "pade"

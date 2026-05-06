@@ -84,6 +84,10 @@ export function TarokApp() {
   function setSetting(name, value) {
     const nextSettings = { ...settingsRef.current, [name]: value };
     settingsRef.current = nextSettings;
+    if (name === "language") {
+      i18nRef.current.setLanguage(value);
+      document.title = i18nRef.current.t("ui.title");
+    }
     setSettings(nextSettings);
 
     if (name === "playerCount") {
@@ -860,7 +864,7 @@ function SidePanel({ model, t }) {
       <section className="panel-section">
         <h2>{t("ui.handLog")}</h2>
         <ol className="log">
-          {model.game.log.slice(0, 90).map((item, index) => (
+          {(model.sessionLog || model.game.log).slice(0, 140).map((item, index) => (
             <li key={`${item.key}-${index}`}>{formatLog(item, model, t)}</li>
           ))}
         </ol>

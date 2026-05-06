@@ -12,7 +12,7 @@ export function chooseCard(tarokGame, player, legalCards, level = "medium") {
   if (!legalCards.length) return null;
   if (level === "easy") return chooseEasyCard(tarokGame, legalCards);
   const contract = tarokGame.game.contract;
-  const inference = level === "hard" ? buildInference(tarokGame, player.id) : null;
+  const inference = level === "easy" ? null : buildInference(tarokGame, player.id);
 
   if (contract.id === "klop") return playKlop(tarokGame, player, legalCards, level);
   if (contract.mode === "beggar") return playBeggarLike(tarokGame, player, legalCards, level, inference);

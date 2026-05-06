@@ -32,6 +32,7 @@ export class TarokGame {
     this.dealer = this.playerCount - 1;
     this.handNumber = 0;
     this.game = null;
+    this.sessionLog = [];
     this.startSession({ playerCount, aiLevel });
   }
 
@@ -55,6 +56,7 @@ export class TarokGame {
     this.dealer = this.playerCount - 1;
     this.scores = [0, 0, 0, 0];
     this.handNumber = 0;
+    this.sessionLog = [];
     this.startHand();
   }
 
@@ -71,6 +73,7 @@ export class TarokGame {
       talon: [],
       talonTaken: [],
       talonRejected: [],
+      talonDiscards: [],
       contract: null,
       declarer: null,
       partner: null,
@@ -783,6 +786,7 @@ export class TarokGame {
     this.game.talon = [];
     this.game.talonTaken = taken;
     this.game.talonRejected = rejected;
+    this.game.talonDiscards = discards;
     if (rejected.some((card) => card.id === "T21") && this.isCapturedMondTalonPenaltyContract()) {
       this.game.capturedMondPenalty.push(this.game.declarer);
     }
@@ -986,6 +990,19 @@ export class TarokGame {
     this.log("scoreChange", {
       entries: this.activePlayers().map((player) => ({ playerId: player.id, delta: signed(deltas[player.id]) }))
     });
+    this.log("handScoreDetails", {
+      hand: this.game.handNumber,
+      contractId: this.game.contract?.id,
+      entries: this.activePlayers().map((player) => ({
+        playerId: player.id,
+        delta: signed(deltas[player.id]),
+        total: this.scores[player.id],
+        tricks: player.tricks,
+        points: formatPoints(countTarokPoints(player.taken)),
+        roundedPoints: round5(countTarokPoints(player.taken)),
+        radli: player.radli
+      }))
+    });
   }
 
   applyRadli(deltas, declarerSide, declarerSuccess, radliTrigger) {
@@ -1114,6 +1131,8 @@ export class TarokGame {
   }
 
   log(key, vars = {}) {
-    this.game.log.unshift({ key: `log.${key}`, vars });
+    const item = { key: `log.${key}`, vars };
+    this.game.log.unshift(item);
+    this.sessionLog.unshift(item);
   }
 }

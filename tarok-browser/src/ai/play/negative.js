@@ -18,8 +18,12 @@ function playNegativeDeclarer(tarokGame, player, legalCards, level) {
     const wouldTake = !losing.length || winningCards([card], trick, contract).length > 0;
     const remainingHand = player.hand.filter((candidate) => candidate.id !== card.id);
     const future = evaluateHand(remainingHand, { contract }).unavoidableWinnerEstimate;
+    const openBeggarPenalty = contract.id === "openBeggar" && level === "hard"
+      ? openBeggarForcedWinRisk(remainingHand)
+      : 0;
     return (wouldTake ? 100 : 0)
       + future * (level === "hard" ? 5 : 3)
+      + openBeggarPenalty * 8
       - exitPreservation(card, remainingHand) * 2
       + cardRisk(card) * 0.15;
   });
@@ -50,4 +54,28 @@ function exitPreservation(card, remainingHand) {
   if (isTarok(card)) return 0;
   const sameSuitLow = remainingHand.filter((candidate) => candidate.suit === card.suit && candidate.value <= 2).length;
   return sameSuitLow;
+}
+
+function openBeggarForcedWinRisk(remainingHand) {
+  // Approximate minimax signal: count cards that are likely forced winners later.
+  // Open hand gives defenders perfect info, so isolated high cards are dangerous.
+  const bySuit = new Map();
+  for (const card of remainingHand) {
+    const key = isTarok(card) ? "tarok" : card.suit;
+    if (!bySuit.has(key)) bySuit.set(key, []);
+    bySuit.get(key).push(card);
+  }
+  let risk = 0;
+  for (const [group, cards] of bySuit.entries()) {
+    const sorted = [...cards].sort((a, b) => cardPower(b) - cardPower(a));
+    if (group === "tarok") {
+      risk += sorted.filter((card) => card.id === "SKIS" || card.tarok >= 18).length * 1.2;
+      risk += sorted.length <= 2 ? 0.9 : 0;
+      continue;
+    }
+    const honourCount = sorted.filter((card) => card.value >= 3).length;
+    risk += honourCount * (cards.length <= 2 ? 1.1 : 0.5);
+    if (cards.length === 1) risk += 1.2;
+  }
+  return risk;
 }

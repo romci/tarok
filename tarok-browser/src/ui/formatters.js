@@ -207,6 +207,21 @@ export function formatLog(item, model, t) {
       .join(", ");
     return t(item.key, { entries });
   }
+  if (item.key === "log.handScoreDetails") {
+    const contract = vars.contractId ? contractNameById(vars.contractId, t) : "—";
+    const details = (vars.entries || [])
+      .map((entry) => t("log.handScoreDetailsEntry", {
+        player: playerName(model.players[entry.playerId], t),
+        delta: entry.delta,
+        total: entry.total,
+        tricks: entry.tricks,
+        points: entry.points,
+        roundedPoints: entry.roundedPoints,
+        radli: entry.radli
+      }))
+      .join(" | ");
+    return t(item.key, { hand: vars.hand, contract, details });
+  }
   if (item.key === "log.radliAwarded") return t(item.key);
   return t(item.key, vars);
 }

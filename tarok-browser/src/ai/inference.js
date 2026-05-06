@@ -7,13 +7,14 @@ export function buildInference(tarokGame, playerId) {
   const visibleIds = new Set(visible.map((card) => card.id));
   const unknownCards = createDeck().filter((card) => !visibleIds.has(card.id));
   const voids = inferVoids(tarokGame);
+  const trumpVoids = inferTrumpVoids(tarokGame);
   const playedCards = [
     ...(game.completedTricks || []).flatMap((trick) => trick.plays.map((play) => play.card)),
     ...game.currentTrick.map((play) => play.card)
   ];
   const playedIds = new Set(playedCards.map((card) => card.id));
   const playedTaroks = playedCards.filter(isTarok);
-  const knownTalonCards = [...(game.talonTaken || []), ...(game.talonRejected || [])];
+  const knownTalonCards = [...(game.talonTaken || []), ...(game.talonRejected || []), ...(game.talonDiscards || [])];
   const knownTalonTaroks = knownTalonCards.filter(isTarok);
   return {
     self,
@@ -21,6 +22,7 @@ export function buildInference(tarokGame, playerId) {
     visibleIds,
     unknownCards,
     voids,
+    trumpVoids,
     playedCards,
     playedIds,
     playedTaroks,
@@ -72,6 +74,31 @@ function inferVoids(tarokGame) {
     }
   }
   return voids;
+}
+
+function inferTrumpVoids(tarokGame) {
+  const noTrump = new Map();
+  const tricks = [];
+  for (const completed of tarokGame.game.completedTricks || []) tricks.push(completed.plays);
+  if (tarokGame.game.lastTrick && !tricks.includes(tarokGame.game.lastTrick.plays)) tricks.push(tarokGame.game.lastTrick.plays);
+  if (tarokGame.game.currentTrick.length) tricks.push(tarokGame.game.currentTrick);
+
+  for (const trick of tricks) {
+    if (!trick.length) continue;
+    const led = trick[0].card;
+    const ledIsTarok = isTarok(led);
+    if (ledIsTarok) continue;
+    for (const play of trick.slice(1)) {
+      const followedSuit = !isTarok(play.card) && play.card.suit === led.suit;
+      const playedTrump = isTarok(play.card);
+      // In negative contracts and regular contracts alike, failing to follow suit
+      // and not trumping implies the player had no trumps at that time.
+      if (!followedSuit && !playedTrump) {
+        noTrump.set(play.playerId, true);
+      }
+    }
+  }
+  return noTrump;
 }
 
 function knownPartnerForSelf(tarokGame, playerId) {
